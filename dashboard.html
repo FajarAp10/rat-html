@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>QUANTUMX • Dashboard</title>
     
-    <!-- Fonts Icons -->
+    <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -523,70 +523,116 @@
             min-width: 100px;
         }
         
-        /* EXPANDABLE SECTION */
-        .expandable-section {
+        /* FLASH CONTROL SECTION */
+        .flash-control-section {
             background: var(--bg-tertiary);
             border: 1px solid var(--border-color);
             border-radius: 16px;
+            padding: 20px;
             margin-bottom: 20px;
-            overflow: hidden;
         }
         
-        .section-header {
+        .flash-title {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 16px 20px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .section-header:hover {
-            background: rgba(255, 255, 255, 0.05);
-        }
-        
-        .section-header .title {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            gap: 10px;
+            margin-bottom: 15px;
+            color: var(--accent-primary);
             font-weight: 600;
         }
         
-        .section-header .title i {
+        .flash-title i {
             font-size: 20px;
         }
         
-        .section-header .arrow {
-            transition: transform 0.3s;
+        .duration-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
         }
         
-        .section-header.expanded .arrow {
-            transform: rotate(180deg);
-        }
-        
-        .section-content {
-            max-height: 0;
-            padding: 0 20px;
+        .duration-input-group input {
+            flex: 2;
+            min-width: 150px;
+            padding: 14px 16px;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 16px;
             transition: all 0.3s;
+        }
+        
+        .duration-input-group input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.1);
+        }
+        
+        .duration-input-group input::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.5;
+        }
+        
+        .btn-send {
+            flex: 1;
+            padding: 14px 20px;
+            background: linear-gradient(135deg, var(--accent-primary) 0%, #00cc6a 100%);
+            border: none;
+            border-radius: 12px;
+            color: var(--bg-primary);
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s;
+            position: relative;
             overflow: hidden;
         }
         
-        .section-content.expanded {
-            max-height: 500px;
-            padding: 0 20px 20px 20px;
+        .btn-send:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 255, 136, 0.2);
         }
         
-        /* FLASH SECTION */
-        .flash-section .section-header .title i {
-            color: var(--accent-primary);
+        .btn-send i {
+            font-size: 16px;
         }
         
-        /* CAMERA SECTION */
-        .camera-section .section-header .title i {
+        .btn-send:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+            background: linear-gradient(135deg, #666666 0%, #444444 100%);
+        }
+        
+        /* CAMERA PREVIEW SECTION */
+        .camera-preview-section {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .camera-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
             color: var(--info);
+            font-weight: 600;
         }
         
-        .camera-preview {
+        .camera-title i {
+            font-size: 20px;
+        }
+        
+        .preview-container {
             background: #000;
             border-radius: 12px;
             padding: 20px;
@@ -601,7 +647,7 @@
             margin-bottom: 15px;
         }
         
-        .camera-preview.active {
+        .preview-container.active {
             border-color: var(--success);
             box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
         }
@@ -663,7 +709,7 @@
             color: var(--bg-primary);
         }
         
-        .btn-start:hover {
+        .btn-start:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(0, 255, 136, 0.2);
         }
@@ -673,75 +719,15 @@
             color: white;
         }
         
-        .btn-stop:hover {
+        .btn-stop:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(255, 51, 102, 0.2);
         }
         
-        .btn-stop:disabled {
+        .btn-camera:disabled {
             opacity: 0.5;
             cursor: not-allowed;
             transform: none;
-        }
-        
-        .duration-input-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-            flex-wrap: wrap;
-        }
-        
-        .duration-input-group input {
-            flex: 2;
-            min-width: 150px;
-            padding: 14px 16px;
-            background: var(--bg-secondary);
-            border: 2px solid var(--border-color);
-            border-radius: 12px;
-            color: var(--text-primary);
-            font-size: 16px;
-            transition: all 0.3s;
-        }
-        
-        .duration-input-group input:focus {
-            outline: none;
-            border-color: var(--accent-primary);
-            box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.1);
-        }
-        
-        .btn-send {
-            flex: 1;
-            padding: 14px 20px;
-            background: linear-gradient(135deg, var(--accent-primary) 0%, #00cc6a 100%);
-            border: none;
-            border-radius: 12px;
-            color: var(--bg-primary);
-            font-weight: 700;
-            font-size: 16px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .btn-send:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0, 255, 136, 0.2);
-        }
-        
-        .btn-send i {
-            font-size: 16px;
-        }
-        
-        .btn-send:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-            transform: none;
-            background: linear-gradient(135deg, #666666 0%, #444444 100%);
         }
         
         /* COOLDOWN ANIMATION */
@@ -948,7 +934,7 @@
             <div class="logo-small">
                 <span class="logo-quantum">Q</span><span class="logo-x">X</span>
             </div>
-            <div class="version">v2.0</div>
+            <div class="version">v3.0</div>
         </div>
         
         <div class="sidebar-menu">
@@ -1083,65 +1069,58 @@
                     <p><strong>Status:</strong> <span id="info-status">-</span></p>
                 </div>
                 
-                <!-- FLASH CONTROL - EXPANDABLE -->
-                <div class="expandable-section flash-section">
-                    <div class="section-header" id="flash-header" onclick="toggleSection('flash')">
-                        <div class="title">
-                            <i class="fas fa-bolt"></i>
-                            <span>Flash Control</span>
-                        </div>
-                        <i class="fas fa-chevron-down arrow" id="flash-arrow"></i>
+                <!-- FLASH CONTROL -->
+                <div class="flash-control-section">
+                    <div class="flash-title">
+                        <i class="fas fa-bolt"></i>
+                        <span>Flash Control</span>
                     </div>
-                    <div class="section-content" id="flash-content">
-                        <div class="duration-input-group">
-                            <input type="number" id="flash-duration" min="1" max="60" value="2" placeholder="Duration (seconds)">
-                            <div style="position: relative; flex: 1; min-width: 150px;">
-                                <button class="btn-send" id="send-flash-btn" onclick="sendFlashCommand()">
-                                    <i class="fas fa-paper-plane"></i>
-                                    <span id="btn-text">Send Flash</span>
-                                    <span id="cooldown-timer" class="cooldown-text"></span>
-                                    <div id="cooldown-progress" class="cooldown-progress"></div>
-                                </button>
-                            </div>
+                    
+                    <div class="duration-input-group">
+                        <input type="number" id="flash-duration" min="1" max="60" value="2" placeholder="Duration (seconds)">
+                        <div style="position: relative; flex: 1; min-width: 150px;">
+                            <button class="btn-send" id="send-flash-btn" onclick="sendFlashCommand()">
+                                <i class="fas fa-paper-plane"></i>
+                                <span id="btn-text">Send Flash</span>
+                                <span id="cooldown-timer" class="cooldown-text"></span>
+                                <div id="cooldown-progress" class="cooldown-progress"></div>
+                            </button>
                         </div>
-                        <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
-                            <i class="fas fa-info-circle"></i> Enter duration 1-60 seconds
-                        </small>
                     </div>
+                    <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
+                        <i class="fas fa-info-circle"></i> Enter duration 1-60 seconds
+                    </small>
                 </div>
                 
-                <!-- CAMERA PREVIEW - EXPANDABLE -->
-                <div class="expandable-section camera-section">
-                    <div class="section-header" id="camera-header" onclick="toggleSection('camera')">
-                        <div class="title">
+                <!-- CAMERA PREVIEW SECTION -->
+                <div class="camera-preview-section">
+                    <div class="camera-title">
+                        <i class="fas fa-camera"></i>
+                        <span>Camera Preview</span>
+                    </div>
+                    
+                    <div class="preview-container" id="preview-container">
+                        <div class="preview-placeholder" id="preview-placeholder">
                             <i class="fas fa-camera"></i>
-                            <span>Camera Preview</span>
+                            <p>Camera preview will appear here</p>
                         </div>
-                        <i class="fas fa-chevron-down arrow" id="camera-arrow"></i>
+                        <img class="preview-image" id="preview-image" style="display: none;">
+                        <div class="loading-spinner" id="camera-loading" style="display: none;"></div>
                     </div>
-                    <div class="section-content" id="camera-content">
-                        <div class="camera-preview" id="camera-preview">
-                            <div class="preview-placeholder" id="preview-placeholder">
-                                <i class="fas fa-camera"></i>
-                                <p>Camera preview will appear here</p>
-                            </div>
-                            <img class="preview-image" id="preview-image" style="display: none;">
-                            <div class="loading-spinner" id="camera-loading" style="display: none;"></div>
-                        </div>
-                        <div class="camera-controls">
-                            <button class="btn-camera btn-start" id="start-camera-btn" onclick="startCameraPreview()">
-                                <i class="fas fa-play"></i>
-                                <span>Start</span>
-                            </button>
-                            <button class="btn-camera btn-stop" id="stop-camera-btn" onclick="stopCameraPreview()" disabled>
-                                <i class="fas fa-stop"></i>
-                                <span>Stop</span>
-                            </button>
-                        </div>
-                        <small style="color: var(--text-secondary); display: block; margin-top: 5px; text-align: center;">
-                            <i class="fas fa-sync-alt"></i> Updates every 3 seconds
-                        </small>
+                    
+                    <div class="camera-controls">
+                        <button class="btn-camera btn-start" id="start-camera-btn" onclick="startCameraPreview()" disabled>
+                            <i class="fas fa-play"></i>
+                            <span>Start</span>
+                        </button>
+                        <button class="btn-camera btn-stop" id="stop-camera-btn" onclick="stopCameraPreview()" disabled>
+                            <i class="fas fa-stop"></i>
+                            <span>Stop</span>
+                        </button>
                     </div>
+                    <small style="color: var(--text-secondary); display: block; margin-top: 5px; text-align: center;">
+                        <i class="fas fa-sync-alt"></i> Updates every 5 seconds
+                    </small>
                 </div>
                 
                 <!-- DELETE DEVICE BUTTON -->
@@ -1186,7 +1165,6 @@
         
         // Camera preview variables
         let isCameraActive = false;
-        let cameraInterval = null;
         
         // ========== INIT ==========
         (function() {
@@ -1266,16 +1244,6 @@
             document.getElementById('notification').classList.remove('show');
         }
         
-        // ========== EXPANDABLE SECTIONS ==========
-        function toggleSection(section) {
-            const header = document.getElementById(section + '-header');
-            const content = document.getElementById(section + '-content');
-            const arrow = document.getElementById(section + '-arrow');
-            
-            header.classList.toggle('expanded');
-            content.classList.toggle('expanded');
-        }
-        
         // ========== COOLDOWN FUNCTION ==========
         function startCooldown(duration) {
             if (isCooldown) return;
@@ -1328,15 +1296,15 @@
             isCameraActive = true;
             document.getElementById('start-camera-btn').disabled = true;
             document.getElementById('stop-camera-btn').disabled = false;
-            document.getElementById('camera-preview').classList.add('active');
+            document.getElementById('preview-container').classList.add('active');
             
             // Show loading
             document.getElementById('preview-placeholder').style.display = 'none';
             document.getElementById('preview-image').style.display = 'none';
             document.getElementById('camera-loading').style.display = 'block';
             
-            // Send start command to device
-            fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
+            // Send start command to device (interval 5 detik)
+            fetch('/api/device/' + currentDevice.deviceId + '/command', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1344,33 +1312,23 @@
                 },
                 body: JSON.stringify({ 
                     command: 'camera_start',
-                    params: { interval: 3000 } // 3 detik
+                    params: { interval: 5000 } // 5 detik
                 })
-            }).catch(err => console.error('Start camera error:', err));
-            
-            // Start polling every 3 seconds
-            cameraInterval = setInterval(() => {
-                if (!isCameraActive || !currentDevice) {
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Camera preview started', 'success');
+                } else {
+                    showNotification('Failed to start camera', 'error');
                     stopCameraPreview();
-                    return;
                 }
-                
-                // Request new frame
-                fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + token
-                    },
-                    body: JSON.stringify({ 
-                        command: 'camera_frame',
-                        params: {}
-                    })
-                }).catch(err => console.error('Frame request error:', err));
-                
-            }, 3000);
-            
-            showNotification('Camera preview started', 'success');
+            })
+            .catch(err => {
+                console.error('Start camera error:', err);
+                showNotification('Error starting camera', 'error');
+                stopCameraPreview();
+            });
         }
         
         function stopCameraPreview() {
@@ -1379,22 +1337,16 @@
             isCameraActive = false;
             document.getElementById('start-camera-btn').disabled = false;
             document.getElementById('stop-camera-btn').disabled = true;
-            document.getElementById('camera-preview').classList.remove('active');
+            document.getElementById('preview-container').classList.remove('active');
             
             // Hide image and show placeholder
             document.getElementById('preview-placeholder').style.display = 'block';
             document.getElementById('preview-image').style.display = 'none';
             document.getElementById('camera-loading').style.display = 'none';
             
-            // Clear interval
-            if (cameraInterval) {
-                clearInterval(cameraInterval);
-                cameraInterval = null;
-            }
-            
             // Send stop command to device
             if (currentDevice) {
-                fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
+                fetch('/api/device/' + currentDevice.deviceId + '/command', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1506,7 +1458,7 @@
                     updateStats();
                 });
                 
-                // Handle camera frame
+                // Handle camera frame (otomatis dari APK, tanpa request)
                 socket.on('camera-frame', (data) => {
                     console.log('📸 Camera frame received');
                     
@@ -1585,7 +1537,7 @@
         // ========== DEVICE MANAGEMENT ==========
         async function loadDevices() {
             try {
-                const response = await fetch(backendUrl + '/api/devices', {
+                const response = await fetch('/api/devices', {
                     headers: { 'Authorization': 'Bearer ' + token }
                 });
                 
@@ -1758,19 +1710,15 @@
             document.getElementById('flash-duration').value = 2;
             document.getElementById('flash-duration').disabled = false;
             
-            // Reset camera
+            // Reset camera buttons
             document.getElementById('start-camera-btn').disabled = false;
             document.getElementById('stop-camera-btn').disabled = true;
+            
+            // Reset preview
             document.getElementById('preview-placeholder').style.display = 'block';
             document.getElementById('preview-image').style.display = 'none';
             document.getElementById('camera-loading').style.display = 'none';
-            document.getElementById('camera-preview').classList.remove('active');
-            
-            // Reset sections (collapsed)
-            document.getElementById('flash-content').classList.remove('expanded');
-            document.getElementById('flash-arrow').style.transform = 'rotate(0deg)';
-            document.getElementById('camera-content').classList.remove('expanded');
-            document.getElementById('camera-arrow').style.transform = 'rotate(0deg)';
+            document.getElementById('preview-container').classList.remove('active');
             
             document.getElementById('device-modal').classList.add('active');
         }
@@ -1792,6 +1740,12 @@
                 return;
             }
             
+            // CEK APAKAH CAMERA SEDANG AKTIF
+            if (isCameraActive) {
+                showNotification('Please stop camera preview first', 'warning');
+                return;
+            }
+            
             if (isCooldown) {
                 showNotification('Please wait for cooldown', 'warning');
                 return;
@@ -1805,7 +1759,7 @@
             }
             
             try {
-                const response = await fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
+                const response = await fetch('/api/device/' + currentDevice.deviceId + '/command', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1921,4 +1875,3 @@
     </script>
 </body>
 </html>
-
