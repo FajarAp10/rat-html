@@ -271,7 +271,7 @@
         /* Stats Cards */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 20px;
             margin-bottom: 30px;
         }
@@ -523,7 +523,7 @@
             min-width: 100px;
         }
         
-        /* FLASH DURATION SECTION */
+        /* FLASH CONTROL SECTION */
         .flash-control-section {
             background: var(--bg-tertiary);
             border: 1px solid var(--border-color);
@@ -590,9 +590,11 @@
             justify-content: center;
             gap: 8px;
             transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
         }
         
-        .btn-send:hover {
+        .btn-send:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(0, 255, 136, 0.2);
         }
@@ -602,9 +604,31 @@
         }
         
         .btn-send:disabled {
-            opacity: 0.5;
+            opacity: 0.7;
             cursor: not-allowed;
             transform: none;
+            background: linear-gradient(135deg, #666666 0%, #444444 100%);
+        }
+        
+        /* COOLDOWN ANIMATION */
+        .cooldown-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--warning), var(--accent-primary));
+            transition: width 0.1s linear;
+            width: 0%;
+        }
+        
+        .btn-send.cooldown {
+            background: linear-gradient(135deg, #444444 0%, #222222 100%);
+        }
+        
+        .cooldown-text {
+            margin-left: 5px;
+            font-size: 12px;
+            color: var(--warning);
         }
         
         /* DELETE BUTTON */
@@ -626,10 +650,15 @@
             margin-top: 20px;
         }
         
-        .delete-device-btn:hover {
+        .delete-device-btn:hover:not(:disabled) {
             background: var(--danger);
             color: white;
             transform: translateY(-2px);
+        }
+        
+        .delete-device-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         
         /* NOTIFICATION */
@@ -762,10 +791,6 @@
                 grid-template-columns: 1fr;
             }
             
-            .device-details {
-                grid-template-columns: 1fr;
-            }
-            
             .duration-input-group {
                 flex-direction: column;
             }
@@ -854,26 +879,6 @@
                     <div class="stat-label">Online</div>
                 </div>
             </div>
-            
-            <div class="stat-card">
-                <div class="stat-icon">
-                    <i class="fas fa-bolt" style="color: var(--warning);"></i>
-                </div>
-                <div class="stat-info">
-                    <div class="stat-value" id="flash-commands">0</div>
-                    <div class="stat-label">Flash Commands</div>
-                </div>
-            </div>
-            
-            <div class="stat-card">
-                <div class="stat-icon">
-                    <i class="fas fa-hourglass-half" style="color: var(--info);"></i>
-                </div>
-                <div class="stat-info">
-                    <div class="stat-value" id="pending-commands">0</div>
-                    <div class="stat-label">Pending</div>
-                </div>
-            </div>
         </div>
         
         <!-- Devices Tab -->
@@ -945,7 +950,7 @@
                     <p><strong>Status:</strong> <span id="info-status">-</span></p>
                 </div>
                 
-                <!-- FLASH CONTROL SECTION (ONLY) -->
+                <!-- FLASH CONTROL DENGAN COOLDOWN -->
                 <div class="flash-control-section">
                     <div class="flash-title">
                         <i class="fas fa-bolt"></i>
@@ -954,10 +959,14 @@
                     
                     <div class="duration-input-group">
                         <input type="number" id="flash-duration" min="1" max="60" value="2" placeholder="Duration (seconds)">
-                        <button class="btn-send" id="send-flash-btn" onclick="sendFlashCommand()">
-                            <i class="fas fa-paper-plane"></i>
-                            <span>Send Flash</span>
-                        </button>
+                        <div style="position: relative; flex: 1; min-width: 150px;">
+                            <button class="btn-send" id="send-flash-btn" onclick="sendFlashCommand()">
+                                <i class="fas fa-paper-plane"></i>
+                                <span id="btn-text">Send Flash</span>
+                                <span id="cooldown-timer" class="cooldown-text"></span>
+                                <div id="cooldown-progress" class="cooldown-progress"></div>
+                            </button>
+                        </div>
                     </div>
                     <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
                         <i class="fas fa-info-circle"></i> Enter duration 1-60 seconds
@@ -965,14 +974,10 @@
                 </div>
                 
                 <!-- DELETE DEVICE BUTTON -->
-                <button class="delete-device-btn" onclick="deleteDevice()">
+                <button class="delete-device-btn" id="delete-device-btn" onclick="deleteDevice()">
                     <i class="fas fa-trash-alt"></i>
                     <span>Delete Device</span>
                 </button>
-                
-                <div class="command-output" id="command-output" style="margin-top: 20px;">
-                    > Ready...
-                </div>
             </div>
         </div>
     </div>
@@ -998,7 +1003,12 @@
         
         // WebSocket devices storage
         let wsDevices = new Map();
-        let flashCommandCount = 0;
+        let deletedDevices = new Set();
+        
+        // COOLDOWN VARIABLES
+        let isCooldown = false;
+        let cooldownInterval = null;
+        let cooldownEndTime = 0;
         
         // ========== INIT ==========
         (function() {
@@ -1010,6 +1020,14 @@
             
             // Set settings
             document.getElementById('settings-backend-url').value = backendUrl;
+            
+            // Load deleted devices dari localStorage
+            try {
+                const saved = localStorage.getItem('quantumx_deleted_devices');
+                if (saved) {
+                    deletedDevices = new Set(JSON.parse(saved));
+                }
+            } catch (e) {}
             
             // Connect WebSocket
             connectWebSocket();
@@ -1061,14 +1079,57 @@
             
             msgEl.textContent = message;
             
-            // Auto hide after 3 seconds
             setTimeout(() => {
                 hideNotification();
-            }, 3000);
+            }, 2000);
         }
         
         function hideNotification() {
             document.getElementById('notification').classList.remove('show');
+        }
+        
+        // ========== COOLDOWN FUNCTION ==========
+        function startCooldown(duration) {
+            if (isCooldown) return;
+            
+            isCooldown = true;
+            cooldownEndTime = Date.now() + (duration * 1000);
+            
+            const sendBtn = document.getElementById('send-flash-btn');
+            const btnText = document.getElementById('btn-text');
+            const cooldownTimer = document.getElementById('cooldown-timer');
+            const cooldownProgress = document.getElementById('cooldown-progress');
+            const durationInput = document.getElementById('flash-duration');
+            
+            // Disable button and input
+            sendBtn.disabled = true;
+            sendBtn.classList.add('cooldown');
+            durationInput.disabled = true;
+            
+            // Update cooldown setiap 100ms
+            cooldownInterval = setInterval(() => {
+                const now = Date.now();
+                const remaining = Math.max(0, cooldownEndTime - now);
+                const remainingSeconds = Math.ceil(remaining / 1000);
+                
+                if (remaining <= 0) {
+                    // Cooldown selesai
+                    clearInterval(cooldownInterval);
+                    isCooldown = false;
+                    sendBtn.disabled = false;
+                    sendBtn.classList.remove('cooldown');
+                    durationInput.disabled = false;
+                    btnText.textContent = 'Send Flash';
+                    cooldownTimer.textContent = '';
+                    cooldownProgress.style.width = '0%';
+                } else {
+                    // Update tampilan
+                    const progress = ((duration * 1000) - remaining) / (duration * 1000) * 100;
+                    cooldownProgress.style.width = progress + '%';
+                    btnText.textContent = 'Waiting';
+                    cooldownTimer.textContent = `(${remainingSeconds}s)`;
+                }
+            }, 100);
         }
         
         // ========== WEBSOCKET ==========
@@ -1077,7 +1138,7 @@
                 socket = io(backendUrl, {
                     transports: ['websocket', 'polling'],
                     reconnection: true,
-                    reconnectionAttempts: 10,
+                    reconnectionAttempts: 999,
                     reconnectionDelay: 1000,
                     timeout: 20000
                 });
@@ -1105,6 +1166,11 @@
                     const deviceId = data.deviceId;
                     const isOnline = data.status === 'online';
                     
+                    if (deletedDevices.has(deviceId)) {
+                        console.log('🚫 Device ignored (deleted):', deviceId);
+                        return;
+                    }
+                    
                     if (!wsDevices.has(deviceId)) {
                         wsDevices.set(deviceId, {
                             deviceId: deviceId,
@@ -1130,7 +1196,16 @@
                 // Handle command results
                 socket.on('command-result', (data) => {
                     console.log('Command result:', data);
-                    handleCommandResult(data);
+                    
+                    if (data.deviceId === currentDevice?.deviceId) {
+                        if (data.command === 'flash') {
+                            if (data.status === 'completed') {
+                                showNotification(`✅ Flash ${data.result?.duration || 2}s completed`, 'success');
+                            } else {
+                                showNotification(`❌ Flash failed`, 'error');
+                            }
+                        }
+                    }
                 });
                 
             } catch (e) {
@@ -1173,7 +1248,7 @@
                 }
                 
                 const data = await response.json();
-                devices = data;
+                devices = data.filter(d => !deletedDevices.has(d.deviceId));
                 
             } catch (error) {
                 console.error('Devices error:', error);
@@ -1188,7 +1263,7 @@
             devices.forEach(d => allDevices.push(d));
             
             wsDevices.forEach((wsDevice, id) => {
-                if (!allDevices.find(d => d.deviceId === id)) {
+                if (!deletedDevices.has(id) && !allDevices.find(d => d.deviceId === id)) {
                     allDevices.push(wsDevice);
                 }
             });
@@ -1268,7 +1343,7 @@
             let allDevices = [];
             devices.forEach(d => allDevices.push(d));
             wsDevices.forEach((d, id) => {
-                if (!allDevices.find(dev => dev.deviceId === id)) {
+                if (!deletedDevices.has(id) && !allDevices.find(dev => dev.deviceId === id)) {
                     allDevices.push(d);
                 }
             });
@@ -1286,7 +1361,7 @@
             let allDevices = [];
             devices.forEach(d => allDevices.push(d));
             wsDevices.forEach((d, id) => {
-                if (!allDevices.find(dev => dev.deviceId === id)) {
+                if (!deletedDevices.has(id) && !allDevices.find(dev => dev.deviceId === id)) {
                     allDevices.push(d);
                 }
             });
@@ -1301,18 +1376,6 @@
             
             document.getElementById('total-devices').textContent = total;
             document.getElementById('online-devices').textContent = online;
-            document.getElementById('flash-commands').textContent = flashCommandCount;
-            
-            fetch(backendUrl + '/api/stats', {
-                headers: {
-                    'Authorization': 'Bearer ' + token
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('pending-commands').textContent = data.pendingCommands || 0;
-            })
-            .catch(() => {});
         }
         
         // ========== MODAL ==========
@@ -1332,11 +1395,9 @@
             const isOnline = device.online && diffMinutes < 5;
             document.getElementById('info-status').textContent = isOnline ? 'Online' : 'Offline';
             
-            // Reset flash duration
             document.getElementById('flash-duration').value = 2;
-            
+            document.getElementById('flash-duration').disabled = false;
             document.getElementById('device-modal').classList.add('active');
-            document.getElementById('command-output').innerHTML = '> Ready...';
         }
         
         function closeModal() {
@@ -1344,26 +1405,24 @@
             currentDevice = null;
         }
         
-        // ========== FLASH COMMAND ==========
+        // ========== FLASH COMMAND DENGAN COOLDOWN ==========
         async function sendFlashCommand() {
             if (!currentDevice) {
                 showNotification('No device selected', 'error');
                 return;
             }
             
-            const duration = document.getElementById('flash-duration').value;
-            
-            // Validate duration
-            if (!duration || duration < 1 || duration > 60) {
-                showNotification('Please enter duration between 1-60 seconds', 'warning');
+            if (isCooldown) {
+                showNotification('Please wait for cooldown', 'warning');
                 return;
             }
             
-            const sendBtn = document.getElementById('send-flash-btn');
-            sendBtn.disabled = true;
-            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+            const duration = parseInt(document.getElementById('flash-duration').value);
             
-            addToOutput(`Sending flash command with duration: ${duration}s...`);
+            if (!duration || duration < 1 || duration > 60) {
+                showNotification('Duration must be 1-60 seconds', 'warning');
+                return;
+            }
             
             try {
                 const response = await fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
@@ -1374,29 +1433,22 @@
                     },
                     body: JSON.stringify({ 
                         command: 'flash', 
-                        params: { duration: parseInt(duration) }
+                        params: { duration: duration }
                     })
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
-                    flashCommandCount++;
-                    updateStats();
-                    addToOutput(`✓ Flash command sent (ID: ${data.commandId})`);
-                    addToOutput(`⏱️ Waiting for device response...`);
-                    showNotification(`Flash command sent for ${duration}s`, 'success');
+                    showNotification(`✅ Flash command sent (${duration}s)`, 'success');
+                    // Mulai cooldown sesuai durasi flash
+                    startCooldown(duration);
                 } else {
-                    addToOutput(`❌ Failed to send flash command`);
-                    showNotification('Failed to send flash command', 'error');
+                    showNotification('❌ Failed to send flash', 'error');
                 }
                 
             } catch (error) {
-                addToOutput(`❌ Error: ${error.message}`);
-                showNotification('Error: ' + error.message, 'error');
-            } finally {
-                sendBtn.disabled = false;
-                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Flash';
+                showNotification('❌ Error: ' + error.message, 'error');
             }
         }
         
@@ -1407,21 +1459,29 @@
                 return;
             }
             
-            if (!confirm('Are you sure you want to delete this device?')) {
+            const lastSeen = new Date(currentDevice.lastSeen || Date.now());
+            const now = new Date();
+            const diffMinutes = (now - lastSeen) / (1000 * 60);
+            const isOnline = currentDevice.online && diffMinutes < 5;
+            
+            if (isOnline) {
+                showNotification('❌ Cannot delete: Device is still online', 'error');
+                return;
+            }
+            
+            if (!confirm('Device is offline. Are you sure you want to delete it?')) {
                 return;
             }
             
             try {
-                // Hapus dari Map (simulasi - karena backend belum punya API delete)
-                // Untuk beneran, perlu tambah endpoint DELETE di server.js
+                deletedDevices.add(currentDevice.deviceId);
+                localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
                 
-                // Hapus dari devices array
                 const index = devices.findIndex(d => d.deviceId === currentDevice.deviceId);
                 if (index !== -1) {
                     devices.splice(index, 1);
                 }
                 
-                // Hapus dari wsDevices
                 if (wsDevices.has(currentDevice.deviceId)) {
                     wsDevices.delete(currentDevice.deviceId);
                 }
@@ -1430,34 +1490,12 @@
                 updateStats();
                 closeModal();
                 
-                showNotification('Device deleted successfully', 'success');
+                showNotification('✅ Device deleted permanently', 'success');
                 
             } catch (error) {
                 console.error('Delete error:', error);
-                showNotification('Error deleting device', 'error');
+                showNotification('❌ Error deleting device', 'error');
             }
-        }
-        
-        function handleCommandResult(data) {
-            if (data.deviceId === currentDevice?.deviceId) {
-                if (data.command === 'flash') {
-                    if (data.status === 'completed') {
-                        addToOutput(`✅ Flash completed successfully`);
-                        showNotification('Flash command executed', 'success');
-                    } else {
-                        addToOutput(`❌ Flash command failed`);
-                        showNotification('Flash command failed', 'error');
-                    }
-                }
-            }
-        }
-        
-        function addToOutput(text) {
-            const output = document.getElementById('command-output');
-            const line = document.createElement('div');
-            line.textContent = text;
-            output.appendChild(line);
-            output.scrollTop = output.scrollHeight;
         }
         
         // ========== UI FUNCTIONS ==========
@@ -1499,7 +1537,6 @@
             window.location.href = 'login.html';
         }
         
-        // Close modal on outside click
         document.addEventListener('click', function(e) {
             const modal = document.getElementById('device-modal');
             if (e.target === modal) {
@@ -1507,9 +1544,8 @@
             }
         });
         
-        // Enter key on duration input
         document.getElementById('flash-duration')?.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !isCooldown) {
                 sendFlashCommand();
             }
         });
