@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>QUANTUMX • Login</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #111117;
+            --bg-tertiary: #1a1a24;
+            --accent-primary: #00ff88;
+            --accent-secondary: #ff3366;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --border-color: #2a2a35;
+            --danger: #ff3366;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a24 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .login-card {
+            background: var(--bg-secondary);
+            border-radius: 32px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 440px;
+            animation: slideUp 0.5s ease;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .logo h1 {
+            font-size: 48px;
+            font-weight: 800;
+            letter-spacing: -2px;
+        }
+        
+        .logo-quantum {
+            color: var(--text-primary);
+        }
+        
+        .logo-x {
+            color: var(--accent-primary);
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+        }
+        
+        .tagline {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        
+        .input-group {
+            position: relative;
+            margin-bottom: 25px;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 16px 20px;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            border-radius: 16px;
+            color: var(--text-primary);
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 4px rgba(0, 255, 136, 0.1);
+        }
+        
+        .input-group label {
+            position: absolute;
+            left: 16px;
+            top: -10px;
+            background: var(--bg-tertiary);
+            padding: 0 8px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--accent-primary);
+            border-radius: 4px;
+        }
+        
+        .server-config {
+            background: var(--bg-tertiary);
+            border-radius: 16px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px dashed var(--border-color);
+        }
+        
+        .server-config .input-group {
+            margin-bottom: 0;
+        }
+        
+        .login-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, var(--accent-primary) 0%, #00cc6a 100%);
+            border: none;
+            border-radius: 16px;
+            color: var(--bg-primary);
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: all 0.3s;
+            margin-top: 30px;
+        }
+        
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 30px -10px rgba(0, 255, 136, 0.3);
+        }
+        
+        .login-btn i {
+            font-size: 18px;
+        }
+        
+        .error-message {
+            background: rgba(255, 51, 102, 0.1);
+            border: 1px solid var(--danger);
+            border-radius: 12px;
+            padding: 12px;
+            color: var(--danger);
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+        
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="logo">
+            <h1>
+                <span class="logo-quantum">QUANTUM</span><span class="logo-x">X</span>
+            </h1>
+        </div>
+        
+        <p class="tagline">Advanced Remote Administration</p>
+        
+        <div class="error-message" id="error-message">
+            <i class="fas fa-exclamation-triangle"></i> Invalid username or password
+        </div>
+        
+        <div class="input-group">
+            <input type="text" id="username" placeholder=" " value="admin">
+            <label>Username</label>
+        </div>
+        
+        <div class="input-group">
+            <input type="password" id="password" placeholder=" " value="fajar10">
+            <label>Password</label>
+        </div>
+        
+        <div class="server-config">
+            <div class="input-group">
+                <input type="text" id="server-url" placeholder=" " value="https://rat.zeabur.app">
+                <label>Backend URL</label>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 11px; margin-top: 10px;">
+                <i class="fas fa-info-circle"></i> Example: http://localhost:3000 or https://api.example.com
+            </p>
+        </div>
+        
+        <button class="login-btn" onclick="handleLogin()">
+            <span>ACCESS PANEL</span>
+            <i class="fas fa-arrow-right"></i>
+        </button>
+        
+        <div class="footer">
+            <p>QUANTUMX v1.0 • Unauthorized access prohibited</p>
+        </div>
+    </div>
+    
+    <script>
+        // Check if already logged in
+        (function() {
+            const token = localStorage.getItem('quantumx_token');
+            const serverUrl = localStorage.getItem('quantumx_server');
+            
+            if (token && serverUrl) {
+                window.location.href = 'dashboard.html';
+            }
+            
+            // Load saved server URL
+            const savedServer = localStorage.getItem('quantumx_server');
+            if (savedServer) {
+                document.getElementById('server-url').value = savedServer;
+            }
+        })();
+        
+        async function handleLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const serverUrl = document.getElementById('server-url').value;
+            
+            // Validate
+            if (!username || !password || !serverUrl) {
+                showError('All fields are required');
+                return;
+            }
+            
+            try {
+                const response = await fetch(serverUrl + '/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Save to localStorage
+                    localStorage.setItem('quantumx_token', data.token);
+                    localStorage.setItem('quantumx_user', JSON.stringify(data.user));
+                    localStorage.setItem('quantumx_server', serverUrl);
+                    
+                    // Redirect to dashboard
+                    window.location.href = 'dashboard.html';
+                } else {
+                    showError(data.error || 'Login failed');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('Cannot connect to server. Check URL or server status.');
+            }
+        }
+        
+        function showError(message) {
+            const errorEl = document.getElementById('error-message');
+            errorEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
+            errorEl.classList.add('show');
+            
+            setTimeout(() => {
+                errorEl.classList.remove('show');
+            }, 5000);
+        }
+        
+        // Enter key to login
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                handleLogin();
+            }
+        });
+    </script>
+</body>
+</html>
