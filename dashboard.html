@@ -1177,11 +1177,18 @@
                     }
                 });
                 
-                socket.on('device-status', (data) => {
+             socket.on('device-status', (data) => {
     console.log('📱 Device status:', data);
     
     const deviceId = data.deviceId;
     const isOnline = data.status === 'online';
+    
+    // JIKA DEVICE ONLINE, HAPUS DARI DELETED DEVICES!
+    if (isOnline && deletedDevices.has(deviceId)) {
+        console.log('🔄 Device online, removing from deleted list:', deviceId);
+        deletedDevices.delete(deviceId);
+        localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
+    }
     
     if (deletedDevices.has(deviceId)) {
         console.log('🚫 Device ignored (deleted):', deviceId);
@@ -1191,7 +1198,6 @@
     // AMBIL DATA LAMA KALO ADA
     const existingDevice = wsDevices.get(deviceId);
     
-    // UPDATE HANYA STATUS, TAPI PERTAHANKAN DATA LAMA!
     wsDevices.set(deviceId, {
         deviceId: deviceId,
         deviceName: existingDevice?.deviceName || data.deviceName || 'Unknown',
@@ -1206,15 +1212,20 @@
     mergeAndRenderDevices();
     updateStats();
 });
-                socket.on('heartbeat', (data) => {
+              socket.on('heartbeat', (data) => {
     console.log('💓 Heartbeat:', data);
     
     const deviceId = data.deviceId;
+    
+    // JIKA ADA HEARTBEAT, HAPUS DARI DELETED DEVICES!
+    if (deletedDevices.has(deviceId)) {
+        console.log('🔄 Heartbeat received, removing from deleted list:', deviceId);
+        deletedDevices.delete(deviceId);
+        localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
+    }
+    
     const existingDevice = wsDevices.get(deviceId);
     
-    if (deletedDevices.has(deviceId)) return;
-    
-    // UPDATE DATA DARI HEARTBEAT, TAPI JIKA ADA DATA KOSONG, PAKAI YANG LAMA
     wsDevices.set(deviceId, {
         deviceId: deviceId,
         deviceName: data.deviceName || existingDevice?.deviceName || 'Unknown',
