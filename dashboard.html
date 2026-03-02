@@ -1160,38 +1160,64 @@
                 });
                 
                 // Handle device status updates
-                socket.on('device-status', (data) => {
-                    console.log('📱 Device status:', data);
-                    
-                    const deviceId = data.deviceId;
-                    const isOnline = data.status === 'online';
-                    
-                    if (deletedDevices.has(deviceId)) {
-                        console.log('🚫 Device ignored (deleted):', deviceId);
-                        return;
-                    }
-                    
-                    if (!wsDevices.has(deviceId)) {
-                        wsDevices.set(deviceId, {
-                            deviceId: deviceId,
-                            deviceName: 'Device ' + deviceId.substr(0, 8),
-                            model: 'Android Device',
-                            androidVersion: 'Unknown',
-                            batteryLevel: Math.floor(Math.random() * 30) + 70,
-                            lastSeen: new Date().toISOString(),
-                            online: isOnline,
-                            fromWS: true
-                        });
-                    } else {
-                        let dev = wsDevices.get(deviceId);
-                        dev.online = isOnline;
-                        dev.lastSeen = new Date().toISOString();
-                        wsDevices.set(deviceId, dev);
-                    }
-                    
-                    mergeAndRenderDevices();
-                    updateStats();
-                });
+socket.on('device-status', (data) => {
+    console.log('📱 Device status:', data);
+    
+    const deviceId = data.deviceId;
+    const isOnline = data.status === 'online';
+    
+    if (deletedDevices.has(deviceId)) {
+        console.log('🚫 Device ignored (deleted):', deviceId);
+        return;
+    }
+    
+    if (!wsDevices.has(deviceId)) {
+        // JANGAN PAKE DATA RANDOM! TUNGGU API KALO GA ADA
+        // Bikin object kosong dulu
+        wsDevices.set(deviceId, {
+            deviceId: deviceId,
+            deviceName: 'Waiting for data...',
+            model: 'Loading...',
+            androidVersion: 'Unknown',
+            batteryLevel: 0,
+            lastSeen: new Date().toISOString(),
+            online: isOnline,
+            fromWS: true
+        });
+    } else {
+        let dev = wsDevices.get(deviceId);
+        dev.online = isOnline;
+        dev.lastSeen = new Date().toISOString();
+        wsDevices.set(deviceId, dev);
+    }
+    
+    mergeAndRenderDevices();
+    updateStats();
+});
+
+// TAMBAHIN LISTENER UNTUK HEARTBEAT (BAWA DATA LENGKAP)
+socket.on('heartbeat', (data) => {
+    console.log('💓 Heartbeat with data:', data);
+    
+    const deviceId = data.deviceId;
+    
+    if (deletedDevices.has(deviceId)) return;
+    
+    // Update dengan data LENGKAP dari heartbeat
+    wsDevices.set(deviceId, {
+        deviceId: deviceId,
+        deviceName: data.deviceName || 'Unknown',
+        model: data.model || 'Unknown',
+        androidVersion: data.androidVersion || 'Unknown',
+        batteryLevel: data.batteryLevel || 0,
+        lastSeen: new Date().toISOString(),
+        online: true,
+        fromWS: true
+    });
+    
+    mergeAndRenderDevices();
+    updateStats();
+});
                 
                 // Handle command results
                 socket.on('command-result', (data) => {
