@@ -1135,22 +1135,22 @@
             }, 100);
         }
         
-        // ========== WEBSOCKET - FIXED VERSION ==========
+        // ========== WEBSOCKET ==========
         function connectWebSocket() {
             try {
                 socket = io(backendUrl, {
-                    transports: ['websocket'],
+                    transports: ['websocket', 'polling'],
                     reconnection: true,
-                    reconnectionAttempts: 50,
-                    reconnectionDelay: 2000,
-                    reconnectionDelayMax: 10000,
+                    reconnectionAttempts: 100,
+                    reconnectionDelay: 1000,
+                    reconnectionDelayMax: 5000,
                     timeout: 30000,
                     forceNew: true,
                     autoConnect: true
                 });
                 
                 socket.on('connect', () => {
-                    console.log('✅ WebSocket connected');
+                    console.log('✅ WebSocket connected via:', socket.io.engine.transport.name);
                     updateConnectionStatus(true);
                     socket.emit('panel-connect', {});
                     showNotification('Connected to server', 'success');
@@ -1169,22 +1169,32 @@
                     updateConnectionStatus(false);
                     stopKeepAlive();
                     
-                    // Kalo disconnect karena server, coba reconnect manual
-                    if (reason === 'io server disconnect' || reason === 'transport close') {
+                    // Auto reconnect
+                    if (reason === 'io server disconnect' || reason === 'transport close' || reason === 'ping timeout') {
                         setTimeout(() => {
                             socket.connect();
                         }, 3000);
                     }
                 });
                 
-                // Handle device status updates - LANGSUNG DENGAN DATA LENGKAP!
+                // ========== FIX UTAMA: AUTO RESTORE DELETED DEVICES ==========
                 socket.on('device-status', (data) => {
                     console.log('📱 Device status:', data);
                     
                     const deviceId = data.deviceId;
                     const isOnline = data.status === 'online';
                     
-                    if (deletedDevices.has(deviceId)) return;
+                    // JIKA DEVICE ONLINE, HAPUS DARI DELETED DEVICES!
+                    if (isOnline && deletedDevices.has(deviceId)) {
+                        console.log('🔄 Device online again, removing from deleted list:', deviceId);
+                        deletedDevices.delete(deviceId);
+                        localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
+                    }
+                    
+                    if (deletedDevices.has(deviceId)) {
+                        console.log('🚫 Device ignored (deleted):', deviceId);
+                        return;
+                    }
                     
                     // UPDATE LANGSUNG DENGAN DATA DARI SERVER!
                     wsDevices.set(deviceId, {
@@ -1202,11 +1212,19 @@
                     updateStats();
                 });
                 
-                // Handle heartbeat
+                // Handle heartbeat - juga auto restore
                 socket.on('heartbeat', (data) => {
                     console.log('💓 Heartbeat:', data);
                     
                     const deviceId = data.deviceId;
+                    
+                    // JIKA ADA HEARTBEAT, HAPUS DARI DELETED DEVICES!
+                    if (deletedDevices.has(deviceId)) {
+                        console.log('🔄 Heartbeat from deleted device, restoring:', deviceId);
+                        deletedDevices.delete(deviceId);
+                        localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
+                    }
+                    
                     if (deletedDevices.has(deviceId)) return;
                     
                     wsDevices.set(deviceId, {
@@ -1257,8 +1275,10 @@
                 if (socket && socket.connected) {
                     socket.emit('ping');
                     console.log('🏓 Ping sent');
+                } else if (socket && !socket.connected) {
+                    socket.connect();
                 }
-            }, 15000);
+            }, 10000);
         }
         
         function stopKeepAlive() {
