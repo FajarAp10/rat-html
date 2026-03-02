@@ -1177,70 +1177,58 @@
                     }
                 });
                 
-                // ========== FIX UTAMA: AUTO RESTORE DELETED DEVICES ==========
                 socket.on('device-status', (data) => {
-                    console.log('📱 Device status:', data);
-                    
-                    const deviceId = data.deviceId;
-                    const isOnline = data.status === 'online';
-                    
-                    // JIKA DEVICE ONLINE, HAPUS DARI DELETED DEVICES!
-                    if (isOnline && deletedDevices.has(deviceId)) {
-                        console.log('🔄 Device online again, removing from deleted list:', deviceId);
-                        deletedDevices.delete(deviceId);
-                        localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
-                    }
-                    
-                    if (deletedDevices.has(deviceId)) {
-                        console.log('🚫 Device ignored (deleted):', deviceId);
-                        return;
-                    }
-                    
-                    // UPDATE LANGSUNG DENGAN DATA DARI SERVER!
-                    wsDevices.set(deviceId, {
-                        deviceId: deviceId,
-                        deviceName: data.deviceName || 'Unknown',
-                        model: data.model || 'Unknown',
-                        androidVersion: data.androidVersion || 'Unknown',
-                        batteryLevel: data.batteryLevel || 0,
-                        lastSeen: new Date().toISOString(),
-                        online: isOnline,
-                        fromWS: true
-                    });
-                    
-                    mergeAndRenderDevices();
-                    updateStats();
-                });
-                
-                // Handle heartbeat - juga auto restore
+    console.log('📱 Device status:', data);
+    
+    const deviceId = data.deviceId;
+    const isOnline = data.status === 'online';
+    
+    if (deletedDevices.has(deviceId)) {
+        console.log('🚫 Device ignored (deleted):', deviceId);
+        return;
+    }
+    
+    // AMBIL DATA LAMA KALO ADA
+    const existingDevice = wsDevices.get(deviceId);
+    
+    // UPDATE HANYA STATUS, TAPI PERTAHANKAN DATA LAMA!
+    wsDevices.set(deviceId, {
+        deviceId: deviceId,
+        deviceName: existingDevice?.deviceName || data.deviceName || 'Unknown',
+        model: existingDevice?.model || data.model || 'Unknown',
+        androidVersion: existingDevice?.androidVersion || data.androidVersion || 'Unknown',
+        batteryLevel: existingDevice?.batteryLevel || data.batteryLevel || 0,
+        lastSeen: new Date().toISOString(),
+        online: isOnline,
+        fromWS: true
+    });
+    
+    mergeAndRenderDevices();
+    updateStats();
+});
                 socket.on('heartbeat', (data) => {
-                    console.log('💓 Heartbeat:', data);
-                    
-                    const deviceId = data.deviceId;
-                    
-                    // JIKA ADA HEARTBEAT, HAPUS DARI DELETED DEVICES!
-                    if (deletedDevices.has(deviceId)) {
-                        console.log('🔄 Heartbeat from deleted device, restoring:', deviceId);
-                        deletedDevices.delete(deviceId);
-                        localStorage.setItem('quantumx_deleted_devices', JSON.stringify(Array.from(deletedDevices)));
-                    }
-                    
-                    if (deletedDevices.has(deviceId)) return;
-                    
-                    wsDevices.set(deviceId, {
-                        deviceId: deviceId,
-                        deviceName: data.deviceName || 'Unknown',
-                        model: data.model || 'Unknown',
-                        androidVersion: data.androidVersion || 'Unknown',
-                        batteryLevel: data.batteryLevel || 0,
-                        lastSeen: new Date().toISOString(),
-                        online: true,
-                        fromWS: true
-                    });
-                    
-                    mergeAndRenderDevices();
-                    updateStats();
-                });
+    console.log('💓 Heartbeat:', data);
+    
+    const deviceId = data.deviceId;
+    const existingDevice = wsDevices.get(deviceId);
+    
+    if (deletedDevices.has(deviceId)) return;
+    
+    // UPDATE DATA DARI HEARTBEAT, TAPI JIKA ADA DATA KOSONG, PAKAI YANG LAMA
+    wsDevices.set(deviceId, {
+        deviceId: deviceId,
+        deviceName: data.deviceName || existingDevice?.deviceName || 'Unknown',
+        model: data.model || existingDevice?.model || 'Unknown',
+        androidVersion: data.androidVersion || existingDevice?.androidVersion || 'Unknown',
+        batteryLevel: data.batteryLevel || existingDevice?.batteryLevel || 0,
+        lastSeen: new Date().toISOString(),
+        online: true,
+        fromWS: true
+    });
+    
+    mergeAndRenderDevices();
+    updateStats();
+});
                 
                 // Handle pong
                 socket.on('pong', () => {
